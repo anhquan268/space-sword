@@ -52,7 +52,7 @@ const CONFIG = Object.freeze({
   autoSwordOrbitFollowStrength: 9,
 
   // Thời gian chờ giữa hai đợt tấn công.
-  autoSwordWaveCooldown: 3,
+  autoSwordWaveCooldown: 1,
 
   // Tốc độ nhóm kiếm trở về quỹ đạo.
   autoSwordReturnSpeed: 34,
@@ -3550,6 +3550,63 @@ function updateAutonomousSwords(
   finishAutonomousSwordGroupReturn();
 }
 
+function updatePausedAutonomousSwords(
+  delta
+) {
+  if (
+    autonomousSwords.length === 0
+  ) {
+    return;
+  }
+
+  /*
+   * isWaveMember = true:
+   * kiếm đang tham gia đợt tấn công,
+   * đang chờ kiếm khác hoặc đang trở về.
+   *
+   * isWaveMember = false:
+   * kiếm hiện đang quay quanh nhân vật.
+   */
+  const orbitingSwords =
+    autonomousSwords.filter(
+      (sword) => {
+        return !sword.userData
+          .isWaveMember;
+      }
+    );
+
+  /*
+   * Không có kiếm nào quanh nhân vật:
+   * giữ nguyên toàn bộ hệ thống.
+   */
+  if (
+    orbitingSwords.length === 0
+  ) {
+    return;
+  }
+
+  autoSwordOrbitAngle +=
+    CONFIG.autoSwordOrbitSpeed *
+    delta;
+
+  autoSwordOrbitAngle %=
+    Math.PI * 2;
+
+  /*
+   * Chỉ cập nhật những kiếm vẫn đang
+   * nằm trên quỹ đạo quanh nhân vật.
+   */
+  for (
+    const sword
+    of orbitingSwords
+  ) {
+    updateAutonomousSwordOrbit(
+      sword,
+      delta
+    );
+  }
+}
+
 function updateLevelSwords(level) {
   updateBackSwordFan(level);
   syncAutonomousSwords(level);
@@ -4607,6 +4664,13 @@ function animate(timestamp) {
       state.combo = 1;
       updateHud();
     }
+  } else if (
+    state.overlayMode ===
+    'pause'
+  ) {
+    updatePausedAutonomousSwords(
+      delta
+    );
   }
 
   renderer.render(
