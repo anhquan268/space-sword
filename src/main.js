@@ -19,8 +19,6 @@ const reticle = document.querySelector('#reticle');
 const hitLabel = document.querySelector('#hit-label');
 const bestScoreText = document.querySelector('#best-score');
 const isCompactScreen = innerWidth <= 900;
-const isMediumScreen = innerWidth <= 1200;
-const isDesktopScreen = innerWidth <= 1800;
 
 const CONFIG = Object.freeze({
   projectileSpeed: 52,
@@ -36,74 +34,62 @@ const CONFIG = Object.freeze({
   maxManualSwords: 5,
 
   // Tốc độ kiếm tự động.
-  autoSwordSpeed: 42,
+  autoSwordSpeed: 34,
 
   // Khoảng cách được tính là đã chém trúng.
   autoSwordHitRadius: 0.32,
-
-  // Kiếm tự động chỉ chọn meteor nằm
-  // trong bán kính này quanh nhân vật.
-  autoSwordTargetRadius: 30,
 
   // Bán kính vòng bay quanh nhân vật.
   autoSwordOrbitRadius: 1.4,
 
   // Độ cao quỹ đạo so với player.
-  autoSwordOrbitHeight: 0.2,
+  autoSwordOrbitHeight: 0,
 
-  // Tốc độ quay, đơn vị radian/giây.
-  autoSwordOrbitSpeed: 3,
+  // Tốc độ quay quanh nhân vật.
+  autoSwordOrbitSpeed: 4,
 
   // Độ nhanh khi kiếm nhập vào quỹ đạo.
   autoSwordOrbitFollowStrength: 9,
 
+  // Thời gian chờ giữa hai đợt tấn công.
+  autoSwordWaveCooldown: 3,
+
+  // Tốc độ nhóm kiếm trở về quỹ đạo.
+  autoSwordReturnSpeed: 34,
+
+  // Khoảng cách được xem là đã về quỹ đạo.
+  autoSwordReturnArrivalDistance: 0.08,
+
+  // Kích thước cố định của kiếm tự động.
   autoSwordScale: 0.4,
 
-  // Thời gian kiếm phải bay quanh nhân vật
-  // trước khi được phép tìm mục tiêu mới.
-  // autoSwordRetargetDelay: 5,
-
-  // Mỗi kiếm được chém tối đa 20 meteor
-  // trong một lượt hoạt động.
-  autoSwordKillsPerTurn: 20,
-
-  // Màu thân kiếm khi giữ lượt.
+  // Màu vàng của kiếm tự động.
   autoSwordGoldColor: 0xffd84a,
 
   // Màu phát sáng.
   autoSwordGoldEmissive: 0xff9800,
 
   // Cường độ phát sáng.
-  autoSwordGoldEmissiveIntensity: 2.2,
+  autoSwordGoldEmissiveIntensity: 10,
 
-  // Cường độ đèn vàng quanh kiếm.
-  autoSwordGoldLightIntensity: 7,
-
-  // Chiều dài vệt sáng của kiếm tự động đang giữ lượt.
-  autoSwordTrailLength: 6.4,
-
-  // Độ sáng tổng thể của trail vàng.
-  autoSwordTrailOpacity: 0.72,
-
-  // Màu burst khi kiếm tự động chém trúng meteor.
+  // Màu burst khi kiếm tự động chém trúng.
   autoSwordBurstColor: 0xffc928,
 
-  // Tốc độ meteor rơi theo phương Y.
+  // Tốc độ meteor đi xuống theo Y.
   meteorFallSpeed: 2.1,
 
-  // Tốc độ meteor rơi theo phương Z.
+  // Tốc độ meteor tiến ra theo Z.
   meteorOutSpeed: 5,
 
-  // Tốc độ meteor trượt vào biên X hợp lệ.
-  meteorXReturnSpeed: isCompactScreen ? 0.3 : 0.7,
+  // Tốc độ meteor trở về biên X hợp lệ.
+  meteorXReturnSpeed:
+    isCompactScreen ? 0.3 : 0.7,
 
-  randomSpeed: 1,
-
-  // Độ cao bắt đầu spawn.
+  // Độ cao spawn meteor.
   meteorSpawnMinY: 27,
   meteorSpawnMaxY: 28,
 
-  // Giới hạn dưới; vượt qua mức này sẽ gây sát thương.
+  // Meteor vượt qua Y này sẽ gây sát thương.
   meteorBottomY: -0.55,
 
   meteorSpawnEvery: 1.05,
@@ -114,14 +100,20 @@ const CONFIG = Object.freeze({
   aimPlaneZ: -48
 });
 
-const PROJECTILE_FORWARD_AXIS = new THREE.Vector3(0, 0, -1);
-const MAX_RIG_PITCH = THREE.MathUtils.degToRad(10);
-const localRigAimDirection = new THREE.Vector3();
+const PROJECTILE_FORWARD_AXIS =
+  new THREE.Vector3(0, 0, -1);
 
-const AIM_PLANE = new THREE.Plane(
-  new THREE.Vector3(0, 0, 1),
-  -CONFIG.aimPlaneZ
-);
+const MAX_RIG_PITCH =
+  THREE.MathUtils.degToRad(10);
+
+const localRigAimDirection =
+  new THREE.Vector3();
+
+const AIM_PLANE =
+  new THREE.Plane(
+    new THREE.Vector3(0, 0, 1),
+    -CONFIG.aimPlaneZ
+  );
 
 const state = {
   assetsReady: false,
@@ -140,55 +132,96 @@ const state = {
   shake: 0
 };
 
-bestScoreText.textContent = formatScore(state.bestScore);
+bestScoreText.textContent =
+  formatScore(state.bestScore);
 
-const scene = new THREE.Scene();
+const scene =
+  new THREE.Scene();
 
-scene.background = new THREE.Color(0x050817);
-scene.fog = new THREE.FogExp2(0x050817, 0.018);
+scene.background =
+  new THREE.Color(0x050817);
 
-const camera = new THREE.PerspectiveCamera(
-  58,
-  innerWidth / innerHeight,
-  0.1,
-  180
-);
+scene.fog =
+  new THREE.FogExp2(
+    0x050817,
+    0.018
+  );
 
-const cameraBase = new THREE.Vector3(0, 3.4, 10);
-const cameraLookAt = new THREE.Vector3(0, 1.15, -18);
+const camera =
+  new THREE.PerspectiveCamera(
+    58,
+    innerWidth / innerHeight,
+    0.1,
+    180
+  );
+
+const cameraBase =
+  new THREE.Vector3(
+    0,
+    3.4,
+    10
+  );
+
+const cameraLookAt =
+  new THREE.Vector3(
+    0,
+    1.15,
+    -18
+  );
 
 camera.position.copy(cameraBase);
 camera.lookAt(cameraLookAt);
 
-const renderer = new THREE.WebGLRenderer({
-  canvas,
-  antialias: true,
-  alpha: false,
-  powerPreference: 'high-performance'
-});
+const renderer =
+  new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    alpha: false,
+    powerPreference:
+      'high-performance'
+  });
 
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.18;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFShadowMap;
-
-const timer = createCompatibleTimer();
-const loader = new GLTFLoader();
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
-const aimScreen = new THREE.Vector2(
-  innerWidth / 2,
-  innerHeight / 2
+renderer.setPixelRatio(
+  Math.min(devicePixelRatio, 2)
 );
+
+renderer.setSize(
+  innerWidth,
+  innerHeight
+);
+
+renderer.outputColorSpace =
+  THREE.SRGBColorSpace;
+
+renderer.toneMapping =
+  THREE.ACESFilmicToneMapping;
+
+renderer.toneMappingExposure =
+  1.18;
+
+const timer =
+  createCompatibleTimer();
+
+const loader =
+  new GLTFLoader();
+
+const raycaster =
+  new THREE.Raycaster();
+
+const pointer =
+  new THREE.Vector2();
+
+const aimScreen =
+  new THREE.Vector2(
+    innerWidth / 2,
+    innerHeight / 2
+  );
 
 const projectiles = [];
 const meteors = [];
 const bursts = [];
 
-// Các thanh kiếm tự động từ Level 6.
+// Kiếm tự động xuất hiện từ Level 6.
 const autonomousSwords = [];
 
 let stars;
@@ -197,10 +230,9 @@ let swordVisualTemplate = null;
 let projectileSwordTemplate = null;
 let meteorVisualTemplate = null;
 let projectileTrailTemplate = null;
-let autoSwordTrailOuterGeometry = null;
-let autoSwordTrailCoreGeometry = null;
 let aimRig = null;
 let aimSwordPivot = null;
+let aimMuzzle = null;
 let backSwordFan = null;
 let hitLabelTimer = 0;
 let damageFlashTimer = 0;
@@ -210,67 +242,119 @@ let continuousFireActive = false;
 let autoSwordOrbitAngle = 0;
 
 /*
- * Thanh kiếm duy nhất đang được phép
- * tự động tấn công.
+ * Trạng thái của cả nhóm kiếm:
+ *
+ * cooldown:
+ * quay quanh nhân vật và đếm 5 giây.
+ *
+ * attacking:
+ * toàn bộ kiếm trong đợt đang tấn công.
+ *
+ * returning:
+ * các kiếm đã chém xong cùng trở về.
  */
-let activeAutonomousSword = null;
+let autoSwordGroupPhase =
+  'cooldown';
+
+let autoSwordWaveCooldownRemaining =
+  CONFIG.autoSwordWaveCooldown;
+
+const tempOrigin =
+  new THREE.Vector3();
+
+const tempTarget =
+  new THREE.Vector3();
+
+const tempDirection =
+  new THREE.Vector3();
+
+const homingDirection =
+  new THREE.Vector3();
+
+const fanDirection =
+  new THREE.Vector3();
+
+const FAN_ROTATION_AXIS =
+  new THREE.Vector3(0, 1, 0);
+
+const primaryTargetPosition =
+  new THREE.Vector3();
+
+const previousTip =
+  new THREE.Vector3();
+
+const currentTip =
+  new THREE.Vector3();
+
+const closestPoint =
+  new THREE.Vector3();
+
+const collisionSegment =
+  new THREE.Line3();
+
+const playerWorldQuaternion =
+  new THREE.Quaternion();
+
+const playerWorldPosition =
+  new THREE.Vector3();
+
+const autoSwordDirection =
+  new THREE.Vector3();
+
+const autoSwordOrbitPosition =
+  new THREE.Vector3();
 
 /*
- * Số thứ tự được cấp khi một kiếm
- * chuyển từ BackSwordFan sang tự động.
- */
-let nextAutonomousSwordOrder = 0;
-
-const tempOrigin = new THREE.Vector3();
-const tempTarget = new THREE.Vector3();
-const tempDirection = new THREE.Vector3();
-const homingDirection = new THREE.Vector3();
-const fanDirection = new THREE.Vector3();
-const FAN_ROTATION_AXIS = new THREE.Vector3(0, 1, 0);
-const primaryTargetPosition = new THREE.Vector3();
-const previousTip = new THREE.Vector3();
-const currentTip = new THREE.Vector3();
-const closestPoint = new THREE.Vector3();
-const collisionSegment = new THREE.Line3();
-const playerWorldQuaternion = new THREE.Quaternion();
-
-const playerWorldPosition = new THREE.Vector3();
-const autoSwordDirection = new THREE.Vector3();
-const autoSwordOrbitPosition = new THREE.Vector3();
-
-/*
- * Khi không có meteor, kiếm tự động dựng mũi lên trên.
- * Model kiếm được quy ước hướng theo trục local -Z.
+ * Model kiếm được quy ước hướng
+ * theo trục local -Z.
  */
 const AUTO_SWORD_IDLE_QUATERNION =
-  new THREE.Quaternion().setFromUnitVectors(
-    PROJECTILE_FORWARD_AXIS,
-    new THREE.Vector3(0, 1, 0)
-  );
+  new THREE.Quaternion()
+    .setFromUnitVectors(
+      PROJECTILE_FORWARD_AXIS,
+      new THREE.Vector3(0, 1, 0)
+    );
 
 function createCompatibleTimer() {
-  if (typeof THREE.Timer === 'function') {
-    const threeTimer = new THREE.Timer();
+  if (
+    typeof THREE.Timer ===
+    'function'
+  ) {
+    const threeTimer =
+      new THREE.Timer();
 
-    threeTimer.connect?.(document);
+    threeTimer.connect?.(
+      document
+    );
 
     return threeTimer;
   }
 
-  let previousTime = performance.now();
+  let previousTime =
+    performance.now();
+
   let delta = 0;
   let elapsed = 0;
 
   return {
     reset() {
-      previousTime = performance.now();
+      previousTime =
+        performance.now();
+
       delta = 0;
 
       return this;
     },
 
-    update(timestamp = performance.now()) {
-      delta = Math.max(0, timestamp - previousTime) / 1000;
+    update(
+      timestamp = performance.now()
+    ) {
+      delta =
+        Math.max(
+          0,
+          timestamp - previousTime
+        ) / 1000;
+
       previousTime = timestamp;
       elapsed += delta;
 
@@ -295,86 +379,136 @@ scene.add(
   )
 );
 
-const keyLight = new THREE.DirectionalLight(
-  0xd8ecff,
-  3.2
-);
+const keyLight =
+  new THREE.DirectionalLight(
+    0xd8ecff,
+    3.2
+  );
 
-keyLight.position.set(6, 11, 7);
-keyLight.castShadow = true;
-keyLight.shadow.mapSize.set(1024, 1024);
-keyLight.shadow.bias = -0.0002;
-keyLight.shadow.normalBias = 0.025;
+keyLight.position.set(
+  6,
+  11,
+  7
+);
 
 scene.add(keyLight);
 
-const cyanLight = new THREE.PointLight(
-  0x43dcff,
-  18,
-  30,
-  2
-);
+const cyanLight =
+  new THREE.PointLight(
+    0x43dcff,
+    18,
+    30,
+    2
+  );
 
-cyanLight.position.set(-5, 3, -8);
+cyanLight.position.set(
+  -5,
+  3,
+  -8
+);
 
 scene.add(cyanLight);
 
-const violetLight = new THREE.PointLight(
-  0x7d45ff,
-  14,
-  36,
-  2
-);
+const violetLight =
+  new THREE.PointLight(
+    0x7d45ff,
+    14,
+    36,
+    2
+  );
 
-violetLight.position.set(7, 6, -24);
+violetLight.position.set(
+  7,
+  6,
+  -24
+);
 
 scene.add(violetLight);
 
-const floorMaterial = new THREE.MeshStandardMaterial({
-  color: 0x080d21,
-  roughness: 0.88,
-  metalness: 0.2,
-  transparent: true,
-  opacity: 0.76
-});
+const floorMaterial =
+  new THREE.MeshStandardMaterial({
+    color: 0x080d21,
+    roughness: 0.88,
+    metalness: 0.2,
+    transparent: true,
+    opacity: 0.76
+  });
 
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(90, 130),
-  floorMaterial
+const floor =
+  new THREE.Mesh(
+    new THREE.PlaneGeometry(
+      90,
+      130
+    ),
+    floorMaterial
+  );
+
+floor.rotation.x =
+  -Math.PI / 2;
+
+floor.position.set(
+  0,
+  -0.72,
+  -35
 );
-
-floor.rotation.x = -Math.PI / 2;
-floor.position.set(0, -0.72, -35);
-floor.receiveShadow = true;
 
 scene.add(floor);
 
-const grid = new THREE.GridHelper(
-  90,
-  45,
-  0x2e9eba,
-  0x172342
+const grid =
+  new THREE.GridHelper(
+    90,
+    45,
+    0x2e9eba,
+    0x172342
+  );
+
+grid.position.set(
+  0,
+  -0.7,
+  -34
 );
 
-grid.position.set(0, -0.7, -34);
-grid.material.transparent = true;
-grid.material.opacity = 0.22;
+grid.material.transparent =
+  true;
+
+grid.material.opacity =
+  0.22;
 
 scene.add(grid);
 
-const horizon = new THREE.Group();
+const horizon =
+  new THREE.Group();
 
-for (const z of [-22, -42, -62]) {
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(8.8, 8.84, 96),
-    new THREE.MeshBasicMaterial({
-      color: z === -42 ? 0x806dff : 0x45dff5,
-      transparent: true,
-      opacity: z === -42 ? 0.11 : 0.07,
-      side: THREE.DoubleSide,
-      depthWrite: false
-    })
-  );
+for (
+  const z of [-22, -42, -62]
+) {
+  const ring =
+    new THREE.Mesh(
+      new THREE.RingGeometry(
+        8.8,
+        8.84,
+        96
+      ),
+
+      new THREE.MeshBasicMaterial({
+        color:
+          z === -42
+            ? 0x806dff
+            : 0x45dff5,
+
+        transparent: true,
+
+        opacity:
+          z === -42
+            ? 0.11
+            : 0.07,
+
+        side:
+          THREE.DoubleSide,
+
+        depthWrite: false
+      })
+    );
 
   ring.position.z = z;
 
@@ -383,39 +517,54 @@ for (const z of [-22, -42, -62]) {
 
 scene.add(horizon);
 
-stars = createStarfield(620);
+stars =
+  createStarfield(620);
 
 scene.add(stars);
 
-const player = new THREE.Group();
+const player =
+  new THREE.Group();
 
 scene.add(player);
 
 async function loadAssets() {
   const assetUrls = {
-    character: new URL(
-      '../models/character_1.glb',
-      import.meta.url
-    ).href,
+    character:
+      new URL(
+        '../models/character_1.glb',
+        import.meta.url
+      ).href,
 
-    sword: new URL(
-      '../models/sword_1.glb',
-      import.meta.url
-    ).href
+    sword:
+      new URL(
+        '../models/sword_1.glb',
+        import.meta.url
+      ).href
   };
 
-  const [characterResult, swordResult] = await Promise.allSettled([
-    loader.loadAsync(assetUrls.character),
-    loader.loadAsync(assetUrls.sword)
-  ]);
+  const [
+    characterResult,
+    swordResult
+  ] =
+    await Promise.allSettled([
+      loader.loadAsync(
+        assetUrls.character
+      ),
+
+      loader.loadAsync(
+        assetUrls.sword
+      )
+    ]);
 
   const characterAsset =
-    characterResult.status === 'fulfilled'
+    characterResult.status ===
+    'fulfilled'
       ? characterResult.value.scene
       : null;
 
   swordAsset =
-    swordResult.status === 'fulfilled'
+    swordResult.status ===
+    'fulfilled'
       ? swordResult.value.scene
       : null;
 
@@ -424,9 +573,13 @@ async function loadAssets() {
   state.assetsReady = true;
 
   startButton.disabled = false;
-  startLabel.textContent = 'Bắt đầu nhiệm vụ';
 
-  status.classList.add('is-ready');
+  startLabel.textContent =
+    'Bắt đầu nhiệm vụ';
+
+  status.classList.add(
+    'is-ready'
+  );
 
   if (!swordAsset) {
     statusText.textContent =
@@ -440,149 +593,254 @@ async function loadAssets() {
   }
 }
 
-function setupPlayer(characterAsset) {
+function setupPlayer(
+  characterAsset
+) {
   player.clear();
 
-  aimRig = new THREE.Group();
-  aimRig.name = 'character-sword-aim-rig';
+  aimRig =
+    new THREE.Group();
+
+  aimRig.name =
+    'character-sword-aim-rig';
 
   aimSwordPivot = null;
+  aimMuzzle = null;
   backSwordFan = null;
 
   if (characterAsset) {
-    const character = characterAsset.clone(true);
+    const character =
+      characterAsset.clone(true);
 
     character.scale.setScalar(80);
-    character.rotation.y = Math.PI;
 
-    prepareModel(character);
+    character.rotation.y =
+      Math.PI;
 
     aimRig.add(character);
   } else {
-    aimRig.add(createFallbackCharacter());
+    aimRig.add(
+      createFallbackCharacter()
+    );
   }
 
-  const heldSword = createSwordVisual('held');
+  const heldSword =
+    createSwordVisual('held');
 
-  aimSwordPivot = new THREE.Group();
-  aimSwordPivot.name = 'aim-sword-pivot';
+  aimSwordPivot =
+    new THREE.Group();
+
+  aimSwordPivot.name =
+    'aim-sword-pivot';
 
   if (swordAsset) {
-    heldSword.scale.setScalar(15);
-    aimSwordPivot.position.set(0, -1.2, 0);
+    heldSword.scale.setScalar(10);
+
+    aimSwordPivot.position.set(
+      0,
+      -1,
+      0
+    );
   } else {
-    heldSword.scale.setScalar(0.72);
-    aimSwordPivot.position.set(0.62, 1.02, -0.34);
+    heldSword.scale.setScalar(
+      0.72
+    );
+
+    aimSwordPivot.position.set(
+      0.62,
+      1.02,
+      -0.34
+    );
   }
 
-  heldSword.position.set(0, 0, 0);
-  heldSword.rotation.set(0, 0, 0);
+  heldSword.position.set(
+    0,
+    0,
+    0
+  );
 
-  aimSwordPivot.add(heldSword);
-  aimRig.add(aimSwordPivot);
+  heldSword.rotation.set(
+    0,
+    0,
+    0
+  );
+
+  aimSwordPivot.add(
+    heldSword
+  );
+
+  aimRig.add(
+    aimSwordPivot
+  );
+
   player.add(aimRig);
 
-  /*
-  * Áp dụng scale và vị trí responsive
-  * ngay sau khi tạo model.
-  */
-  updateResponsivePlayerLayout();
+  player.updateMatrixWorld(true);
 
+  aimMuzzle =
+    new THREE.Object3D();
+
+  aimMuzzle.name =
+    'sword-muzzle';
+
+  const heldSwordBounds =
+    new THREE.Box3()
+      .setFromObject(
+        heldSword
+      );
+
+  if (
+    !heldSwordBounds.isEmpty()
+  ) {
+    const muzzleWorldPosition =
+      heldSwordBounds.getCenter(
+        new THREE.Vector3()
+      );
+
+    muzzleWorldPosition.z =
+      heldSwordBounds.min.z;
+
+    aimSwordPivot.worldToLocal(
+      muzzleWorldPosition
+    );
+
+    aimMuzzle.position.copy(
+      muzzleWorldPosition
+    );
+  } else {
+    aimMuzzle.position.set(
+      0,
+      0,
+      -2.5
+    );
+  }
+
+  aimSwordPivot.add(
+    aimMuzzle
+  );
+
+  updateResponsivePlayerLayout();
   updateLevelSwords(state.level);
+
   updateAimRigFromScreen(
     aimScreen.x,
     aimScreen.y
   );
 }
 
-function prepareModel(
-  root,
-  {
-    castShadow = false,
-    receiveShadow = false
-  } = {}
-) {
-  root.traverse((node) => {
-    if (!node.isMesh) {
-      return;
-    }
-
-    node.castShadow = castShadow;
-    node.receiveShadow = receiveShadow;
-  });
-
-  return root;
-}
-
 function createFallbackCharacter() {
-  const group = new THREE.Group();
+  const group =
+    new THREE.Group();
 
-  const armorMaterial = new THREE.MeshStandardMaterial({
-    color: 0x17233d,
-    metalness: 0.72,
-    roughness: 0.28
-  });
+  const armorMaterial =
+    new THREE.MeshStandardMaterial({
+      color: 0x17233d,
+      metalness: 0.72,
+      roughness: 0.28
+    });
 
-  const darkMaterial = new THREE.MeshStandardMaterial({
-    color: 0x070b16,
-    metalness: 0.55,
-    roughness: 0.4
-  });
+  const darkMaterial =
+    new THREE.MeshStandardMaterial({
+      color: 0x070b16,
+      metalness: 0.55,
+      roughness: 0.4
+    });
 
-  const glowMaterial = new THREE.MeshStandardMaterial({
-    color: 0x8bf6ff,
-    emissive: 0x38cde8,
-    emissiveIntensity: 3.5,
-    metalness: 0.2,
-    roughness: 0.22
-  });
+  const glowMaterial =
+    new THREE.MeshStandardMaterial({
+      color: 0x8bf6ff,
+      emissive: 0x38cde8,
+      emissiveIntensity: 3.5,
+      metalness: 0.2,
+      roughness: 0.22
+    });
 
-  const torso = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.34, 0.72, 8, 16),
-    armorMaterial
-  );
-
-  torso.position.y = 0.96;
-  torso.castShadow = true;
-
-  group.add(torso);
-
-  const chest = new THREE.Mesh(
-    new THREE.BoxGeometry(0.5, 0.18, 0.17),
-    glowMaterial
-  );
-
-  chest.position.set(0, 1.11, -0.31);
-
-  group.add(chest);
-
-  const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.29, 20, 14),
-    darkMaterial
-  );
-
-  head.position.y = 1.68;
-  head.castShadow = true;
-
-  group.add(head);
-
-  const visor = new THREE.Mesh(
-    new THREE.BoxGeometry(0.37, 0.09, 0.08),
-    glowMaterial
-  );
-
-  visor.position.set(0, 1.7, -0.25);
-
-  group.add(visor);
-
-  for (const x of [-0.19, 0.19]) {
-    const leg = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.11, 0.54, 6, 10),
+  const torso =
+    new THREE.Mesh(
+      new THREE.CapsuleGeometry(
+        0.34,
+        0.72,
+        8,
+        16
+      ),
       armorMaterial
     );
 
-    leg.position.set(x, 0.23, 0);
-    leg.castShadow = true;
+  torso.position.y =
+    0.96;
+
+  group.add(torso);
+
+  const chest =
+    new THREE.Mesh(
+      new THREE.BoxGeometry(
+        0.5,
+        0.18,
+        0.17
+      ),
+      glowMaterial
+    );
+
+  chest.position.set(
+    0,
+    1.11,
+    -0.31
+  );
+
+  group.add(chest);
+
+  const head =
+    new THREE.Mesh(
+      new THREE.SphereGeometry(
+        0.29,
+        20,
+        14
+      ),
+      darkMaterial
+    );
+
+  head.position.y =
+    1.68;
+
+  group.add(head);
+
+  const visor =
+    new THREE.Mesh(
+      new THREE.BoxGeometry(
+        0.37,
+        0.09,
+        0.08
+      ),
+      glowMaterial
+    );
+
+  visor.position.set(
+    0,
+    1.7,
+    -0.25
+  );
+
+  group.add(visor);
+
+  for (
+    const x of [-0.19, 0.19]
+  ) {
+    const leg =
+      new THREE.Mesh(
+        new THREE.CapsuleGeometry(
+          0.11,
+          0.54,
+          6,
+          10
+        ),
+        armorMaterial
+      );
+
+    leg.position.set(
+      x,
+      0.23,
+      0
+    );
 
     group.add(leg);
   }
@@ -590,271 +848,371 @@ function createFallbackCharacter() {
   return group;
 }
 
-function createSwordVisual(mode = 'projectile') {
+function createSwordVisual(
+  mode = 'projectile'
+) {
   if (swordAsset) {
-    const sword = swordAsset.clone(true);
+    const sword =
+      swordAsset.clone(true);
 
-    sword.position.set(0, 0, 0);
-    sword.rotation.set(0, 0, 0);
-    sword.scale.setScalar(
-      mode === 'projectile' ? 10 : 1
+    sword.position.set(
+      0,
+      0,
+      0
     );
 
-    prepareModel(sword);
+    sword.rotation.set(
+      0,
+      0,
+      0
+    );
 
-    if (mode === 'projectile') {
-      sword.traverse((node) => {
-        if (!node.isMesh) {
-          return;
-        }
-
-        node.castShadow = false;
-        node.receiveShadow = false;
-      });
-    }
+    sword.scale.setScalar(
+      mode === 'projectile'
+        ? 10
+        : 1
+    );
 
     return sword;
   }
 
   if (!swordVisualTemplate) {
-    swordVisualTemplate = createProceduralSword();
+    swordVisualTemplate =
+      createProceduralSword();
   }
 
-  return swordVisualTemplate.clone(true);
+  return swordVisualTemplate
+    .clone(true);
 }
 
 function createProjectileSwordVisual() {
   if (!projectileSwordTemplate) {
-    const visual = createSwordVisual('projectile');
+    const visual =
+      createSwordVisual(
+        'projectile'
+      );
 
     if (!swordAsset) {
-      visual.scale.setScalar(0.76);
+      visual.scale.setScalar(
+        0.76
+      );
     }
 
     visual.updateMatrixWorld(true);
 
-    const bounds = new THREE.Box3().setFromObject(visual);
+    const bounds =
+      new THREE.Box3()
+        .setFromObject(visual);
 
     if (!bounds.isEmpty()) {
-      const center = bounds.getCenter(
-        new THREE.Vector3()
-      );
+      const center =
+        bounds.getCenter(
+          new THREE.Vector3()
+        );
 
-      visual.position.sub(center);
+      visual.position.sub(
+        center
+      );
     }
 
-    projectileSwordTemplate = visual;
+    projectileSwordTemplate =
+      visual;
   }
 
-  return projectileSwordTemplate.clone(true);
+  return projectileSwordTemplate
+    .clone(true);
 }
 
 function createProceduralSword() {
-  const sword = new THREE.Group();
+  const sword =
+    new THREE.Group();
 
-  sword.name = 'energy-sword';
+  sword.name =
+    'energy-sword';
 
-  const bladeMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xe8fdff,
-    emissive: 0x27cde8,
-    emissiveIntensity: 3.6,
-    metalness: 0.68,
-    roughness: 0.14,
-    clearcoat: 1,
-    clearcoatRoughness: 0.12
-  });
+  const bladeMaterial =
+    new THREE.MeshPhysicalMaterial({
+      color: 0xe8fdff,
+      emissive: 0x27cde8,
+      emissiveIntensity: 3.6,
+      metalness: 0.68,
+      roughness: 0.14,
+      clearcoat: 1,
+      clearcoatRoughness: 0.12
+    });
 
-  const bladeCoreMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    toneMapped: false
-  });
+  const bladeCoreMaterial =
+    new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      toneMapped: false
+    });
 
-  const bladeGlowMaterial = new THREE.MeshBasicMaterial({
-    color: 0x36e6ff,
-    transparent: true,
-    opacity: 0.12,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    toneMapped: false
-  });
+  const bladeGlowMaterial =
+    new THREE.MeshBasicMaterial({
+      color: 0x36e6ff,
+      transparent: true,
+      opacity: 0.12,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending:
+        THREE.AdditiveBlending,
+      toneMapped: false
+    });
 
-  const metalMaterial = new THREE.MeshStandardMaterial({
-    color: 0x7182ab,
-    emissive: 0x16233c,
-    emissiveIntensity: 0.5,
-    metalness: 0.92,
-    roughness: 0.2
-  });
+  const metalMaterial =
+    new THREE.MeshStandardMaterial({
+      color: 0x7182ab,
+      emissive: 0x16233c,
+      emissiveIntensity: 0.5,
+      metalness: 0.92,
+      roughness: 0.2
+    });
 
-  const gripMaterial = new THREE.MeshStandardMaterial({
-    color: 0x11162a,
-    metalness: 0.42,
-    roughness: 0.62
-  });
+  const gripMaterial =
+    new THREE.MeshStandardMaterial({
+      color: 0x11162a,
+      metalness: 0.42,
+      roughness: 0.62
+    });
 
-  const blade = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      0.045,
-      0.15,
-      1.92,
-      4,
-      1,
-      false
-    ),
-    bladeMaterial
-  );
-
-  blade.rotation.x = -Math.PI / 2;
-  blade.position.z = -1.22;
-
-  sword.add(blade);
-
-  const bladeCore = new THREE.Mesh(
-    new THREE.BoxGeometry(0.028, 0.028, 1.58),
-    bladeCoreMaterial
-  );
-
-  bladeCore.position.z = -1.2;
-
-  sword.add(bladeCore);
-
-  const bladeGlow = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      0.08,
-      0.205,
-      2.02,
-      4,
-      1,
-      true
-    ),
-    bladeGlowMaterial
-  );
-
-  bladeGlow.rotation.x = -Math.PI / 2;
-  bladeGlow.position.z = -1.22;
-
-  sword.add(bladeGlow);
-
-  const tip = new THREE.Mesh(
-    new THREE.ConeGeometry(0.048, 0.38, 4),
-    bladeMaterial
-  );
-
-  tip.rotation.x = -Math.PI / 2;
-  tip.position.z = -2.36;
-
-  sword.add(tip);
-
-  const guard = new THREE.Mesh(
-    new THREE.BoxGeometry(0.72, 0.09, 0.14),
-    metalMaterial
-  );
-
-  guard.position.z = -0.19;
-
-  sword.add(guard);
-
-  for (const x of [-0.4, 0.4]) {
-    const guardTip = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.11, 0),
+  const blade =
+    new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        0.045,
+        0.15,
+        1.92,
+        4,
+        1,
+        false
+      ),
       bladeMaterial
     );
 
-    guardTip.position.set(x, 0, -0.19);
-    guardTip.scale.set(1.25, 0.62, 0.7);
+  blade.rotation.x =
+    -Math.PI / 2;
+
+  blade.position.z =
+    -1.22;
+
+  sword.add(blade);
+
+  const bladeCore =
+    new THREE.Mesh(
+      new THREE.BoxGeometry(
+        0.028,
+        0.028,
+        1.58
+      ),
+      bladeCoreMaterial
+    );
+
+  bladeCore.position.z =
+    -1.2;
+
+  sword.add(bladeCore);
+
+  const bladeGlow =
+    new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        0.08,
+        0.205,
+        2.02,
+        4,
+        1,
+        true
+      ),
+      bladeGlowMaterial
+    );
+
+  bladeGlow.rotation.x =
+    -Math.PI / 2;
+
+  bladeGlow.position.z =
+    -1.22;
+
+  sword.add(bladeGlow);
+
+  const tip =
+    new THREE.Mesh(
+      new THREE.ConeGeometry(
+        0.048,
+        0.38,
+        4
+      ),
+      bladeMaterial
+    );
+
+  tip.rotation.x =
+    -Math.PI / 2;
+
+  tip.position.z =
+    -2.36;
+
+  sword.add(tip);
+
+  const guard =
+    new THREE.Mesh(
+      new THREE.BoxGeometry(
+        0.72,
+        0.09,
+        0.14
+      ),
+      metalMaterial
+    );
+
+  guard.position.z =
+    -0.19;
+
+  sword.add(guard);
+
+  for (
+    const x of [-0.4, 0.4]
+  ) {
+    const guardTip =
+      new THREE.Mesh(
+        new THREE.OctahedronGeometry(
+          0.11,
+          0
+        ),
+        bladeMaterial
+      );
+
+    guardTip.position.set(
+      x,
+      0,
+      -0.19
+    );
+
+    guardTip.scale.set(
+      1.25,
+      0.62,
+      0.7
+    );
 
     sword.add(guardTip);
   }
 
-  const grip = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      0.065,
-      0.076,
-      0.54,
-      12
-    ),
-    gripMaterial
-  );
+  const grip =
+    new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        0.065,
+        0.076,
+        0.54,
+        12
+      ),
+      gripMaterial
+    );
 
-  grip.rotation.x = Math.PI / 2;
-  grip.position.z = 0.17;
+  grip.rotation.x =
+    Math.PI / 2;
+
+  grip.position.z =
+    0.17;
 
   sword.add(grip);
 
-  for (const z of [-0.02, 0.1, 0.22, 0.34]) {
-    const gripRing = new THREE.Mesh(
-      new THREE.TorusGeometry(
-        0.077,
-        0.012,
-        6,
-        16
-      ),
-      metalMaterial
-    );
+  for (
+    const z of [
+      -0.02,
+      0.1,
+      0.22,
+      0.34
+    ]
+  ) {
+    const gripRing =
+      new THREE.Mesh(
+        new THREE.TorusGeometry(
+          0.077,
+          0.012,
+          6,
+          16
+        ),
+        metalMaterial
+      );
 
     gripRing.position.z = z;
 
     sword.add(gripRing);
   }
 
-  const pommel = new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.13, 0),
-    bladeMaterial
+  const pommel =
+    new THREE.Mesh(
+      new THREE.OctahedronGeometry(
+        0.13,
+        0
+      ),
+      bladeMaterial
+    );
+
+  pommel.position.z =
+    0.54;
+
+  pommel.scale.set(
+    0.8,
+    0.8,
+    1.18
   );
 
-  pommel.position.z = 0.54;
-  pommel.scale.set(0.8, 0.8, 1.18);
-
   sword.add(pommel);
-
-  sword.traverse((node) => {
-    if (node.isMesh) {
-      node.castShadow = true;
-    }
-  });
 
   return sword;
 }
 
 function createMeteorVisual() {
   if (!meteorVisualTemplate) {
-    meteorVisualTemplate = createProceduralMeteor();
+    meteorVisualTemplate =
+      createProceduralMeteor();
   }
 
-  return meteorVisualTemplate.clone(true);
+  return meteorVisualTemplate
+    .clone(true);
 }
 
 function createProceduralMeteor() {
-  const group = new THREE.Group();
+  const group =
+    new THREE.Group();
 
-  group.name = 'red-meteor';
+  group.name =
+    'red-meteor';
 
-  const sphere = new THREE.Mesh(
-    new THREE.SphereGeometry(0.72, 16, 12),
-    new THREE.MeshStandardMaterial({
-      color: 0xff173d,
-      emissive: 0xa50025,
-      emissiveIntensity: 2.15,
-      metalness: 0.04,
-      roughness: 0.38
-    })
-  );
+  const sphere =
+    new THREE.Mesh(
+      new THREE.SphereGeometry(
+        0.72,
+        16,
+        12
+      ),
+
+      new THREE.MeshStandardMaterial({
+        color: 0xff173d,
+        emissive: 0xa50025,
+        emissiveIntensity: 2.15,
+        metalness: 0.04,
+        roughness: 0.38
+      })
+    );
 
   group.add(sphere);
 
-  const glow = new THREE.Mesh(
-    new THREE.SphereGeometry(0.84, 12, 8),
-    new THREE.MeshBasicMaterial({
-      color: 0xff315c,
-      transparent: true,
-      opacity: 0.16,
-      side: THREE.BackSide,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      toneMapped: false
-    })
-  );
+  const glow =
+    new THREE.Mesh(
+      new THREE.SphereGeometry(
+        0.84,
+        12,
+        8
+      ),
+
+      new THREE.MeshBasicMaterial({
+        color: 0xff315c,
+        transparent: true,
+        opacity: 0.16,
+        side: THREE.BackSide,
+        depthWrite: false,
+        blending:
+          THREE.AdditiveBlending,
+        toneMapped: false
+      })
+    );
 
   group.add(glow);
 
@@ -862,47 +1220,89 @@ function createProceduralMeteor() {
 }
 
 function createStarfield(count) {
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const cyan = new THREE.Color(0x7deeff);
-  const violet = new THREE.Color(0x9c86ff);
+  const positions =
+    new Float32Array(
+      count * 3
+    );
 
-  for (let index = 0; index < count; index += 1) {
-    const offset = index * 3;
+  const colors =
+    new Float32Array(
+      count * 3
+    );
+
+  const cyan =
+    new THREE.Color(
+      0x7deeff
+    );
+
+  const violet =
+    new THREE.Color(
+      0x9c86ff
+    );
+
+  for (
+    let index = 0;
+    index < count;
+    index += 1
+  ) {
+    const offset =
+      index * 3;
 
     positions[offset] =
-      THREE.MathUtils.randFloatSpread(52);
+      THREE.MathUtils
+        .randFloatSpread(52);
 
     positions[offset + 1] =
-      THREE.MathUtils.randFloat(-0.2, 22);
+      THREE.MathUtils.randFloat(
+        -0.2,
+        22
+      );
 
     positions[offset + 2] =
-      THREE.MathUtils.randFloat(-85, 3);
+      THREE.MathUtils.randFloat(
+        -85,
+        3
+      );
 
     const color =
       Math.random() > 0.72
         ? violet
         : cyan;
 
-    colors[offset] = color.r;
-    colors[offset + 1] = color.g;
-    colors[offset + 2] = color.b;
+    colors[offset] =
+      color.r;
+
+    colors[offset + 1] =
+      color.g;
+
+    colors[offset + 2] =
+      color.b;
   }
 
-  const geometry = new THREE.BufferGeometry();
+  const geometry =
+    new THREE.BufferGeometry();
 
   geometry.setAttribute(
     'position',
-    new THREE.BufferAttribute(positions, 3)
+
+    new THREE.BufferAttribute(
+      positions,
+      3
+    )
   );
 
   geometry.setAttribute(
     'color',
-    new THREE.BufferAttribute(colors, 3)
+
+    new THREE.BufferAttribute(
+      colors,
+      3
+    )
   );
 
   return new THREE.Points(
     geometry,
+
     new THREE.PointsMaterial({
       size: 0.09,
       vertexColors: true,
@@ -914,30 +1314,56 @@ function createStarfield(count) {
   );
 }
 
-function setRaycasterFromScreen(clientX, clientY) {
+function setRaycasterFromScreen(
+  clientX,
+  clientY
+) {
   pointer.x =
-    (clientX / innerWidth) * 2 - 1;
+    (clientX / innerWidth) *
+      2 -
+    1;
 
   pointer.y =
-    -(clientY / innerHeight) * 2 + 1;
+    -(clientY / innerHeight) *
+      2 +
+    1;
 
-  raycaster.setFromCamera(pointer, camera);
+  raycaster.setFromCamera(
+    pointer,
+    camera
+  );
 }
 
-function findMeteorAtScreen(clientX, clientY) {
+function findMeteorAtScreen(
+  clientX,
+  clientY
+) {
   if (meteors.length === 0) {
     return null;
   }
 
-  setRaycasterFromScreen(clientX, clientY);
+  setRaycasterFromScreen(
+    clientX,
+    clientY
+  );
 
   const intersections =
-    raycaster.intersectObjects(meteors, true);
+    raycaster.intersectObjects(
+      meteors,
+      true
+    );
 
-  for (const intersection of intersections) {
-    let object = intersection.object;
+  for (
+    const intersection
+    of intersections
+  ) {
+    let object =
+      intersection.object;
 
-    while (object && object !== scene) {
+    while (
+      object &&
+      object !== scene
+    ) {
       if (
         object.userData.isMeteor &&
         meteors.includes(object)
@@ -957,18 +1383,27 @@ function calculateAimDirection(
   clientY,
   targetDirection
 ) {
-  setRaycasterFromScreen(clientX, clientY);
+  setRaycasterFromScreen(
+    clientX,
+    clientY
+  );
 
   if (
-    !raycaster.ray.intersectPlane(
-      AIM_PLANE,
-      tempTarget
-    )
+    !raycaster.ray
+      .intersectPlane(
+        AIM_PLANE,
+        tempTarget
+      )
   ) {
-    raycaster.ray.at(60, tempTarget);
+    raycaster.ray.at(
+      60,
+      tempTarget
+    );
   }
 
-  getMuzzlePosition(tempOrigin);
+  getMuzzlePosition(
+    tempOrigin
+  );
 
   targetDirection
     .copy(tempTarget)
@@ -978,7 +1413,10 @@ function calculateAimDirection(
   return targetDirection;
 }
 
-function updateAimRigFromScreen(clientX, clientY) {
+function updateAimRigFromScreen(
+  clientX,
+  clientY
+) {
   if (!aimRig) {
     return;
   }
@@ -989,32 +1427,41 @@ function updateAimRigFromScreen(clientX, clientY) {
     tempDirection
   );
 
-  player.getWorldQuaternion(playerWorldQuaternion);
-  playerWorldQuaternion.invert();
+  player.getWorldQuaternion(
+    playerWorldQuaternion
+  );
+
+  playerWorldQuaternion
+    .invert();
 
   localRigAimDirection
     .copy(tempDirection)
-    .applyQuaternion(playerWorldQuaternion)
+    .applyQuaternion(
+      playerWorldQuaternion
+    )
     .normalize();
 
-  const rawYaw = Math.atan2(
-    -localRigAimDirection.x,
-    -localRigAimDirection.z
-  );
+  const rawYaw =
+    Math.atan2(
+      -localRigAimDirection.x,
+      -localRigAimDirection.z
+    );
 
-  const rawPitch = Math.asin(
+  const rawPitch =
+    Math.asin(
+      THREE.MathUtils.clamp(
+        localRigAimDirection.y,
+        -1,
+        1
+      )
+    );
+
+  const pitch =
     THREE.MathUtils.clamp(
-      localRigAimDirection.y,
-      -1,
-      1
-    )
-  );
-
-  const pitch = THREE.MathUtils.clamp(
-    rawPitch,
-    -MAX_RIG_PITCH,
-    MAX_RIG_PITCH
-  );
+      rawPitch,
+      -MAX_RIG_PITCH,
+      MAX_RIG_PITCH
+    );
 
   aimRig.rotation.set(
     pitch,
@@ -1024,21 +1471,34 @@ function updateAimRigFromScreen(clientX, clientY) {
   );
 }
 
-function shootFromScreen(clientX, clientY) {
-  let target = aimedMeteor;
+function shootFromScreen(
+  clientX,
+  clientY
+) {
+  let target =
+    aimedMeteor;
 
-  if (!target || !meteors.includes(target)) {
-    target = findMeteorAtScreen(
-      clientX,
-      clientY
-    );
+  if (
+    !target ||
+    !meteors.includes(target)
+  ) {
+    target =
+      findMeteorAtScreen(
+        clientX,
+        clientY
+      );
 
     aimedMeteor = target;
   }
 
   if (target) {
-    getMuzzlePosition(tempOrigin);
-    target.getWorldPosition(tempTarget);
+    getMuzzlePosition(
+      tempOrigin
+    );
+
+    target.getWorldPosition(
+      tempTarget
+    );
 
     tempDirection
       .copy(tempTarget)
@@ -1070,7 +1530,10 @@ function getNearbySecondaryTargets(
   primaryTarget,
   maximumTargets
 ) {
-  if (!primaryTarget || maximumTargets <= 0) {
+  if (
+    !primaryTarget ||
+    maximumTargets <= 0
+  ) {
     return [];
   }
 
@@ -1079,29 +1542,42 @@ function getNearbySecondaryTargets(
   );
 
   const maximumDistanceSquared =
-    CONFIG.secondaryTargetRadius ** 2;
+    CONFIG.secondaryTargetRadius **
+    2;
 
   return meteors
     .filter((meteor) => {
       return (
         meteor !== primaryTarget &&
         meteor.parent &&
-        meteor.position.distanceToSquared(
-          primaryTargetPosition
-        ) <= maximumDistanceSquared
+        meteor.position
+          .distanceToSquared(
+            primaryTargetPosition
+          ) <=
+          maximumDistanceSquared
       );
     })
-    .sort((meteorA, meteorB) => {
-      return (
-        meteorA.position.distanceToSquared(
-          primaryTargetPosition
-        ) -
-        meteorB.position.distanceToSquared(
-          primaryTargetPosition
-        )
-      );
-    })
-    .slice(0, maximumTargets);
+    .sort(
+      (
+        meteorA,
+        meteorB
+      ) => {
+        return (
+          meteorA.position
+            .distanceToSquared(
+              primaryTargetPosition
+            ) -
+          meteorB.position
+            .distanceToSquared(
+              primaryTargetPosition
+            )
+        );
+      }
+    )
+    .slice(
+      0,
+      maximumTargets
+    );
 }
 
 function fireProjectileFan(
@@ -1109,11 +1585,15 @@ function fireProjectileFan(
   direction,
   target = null
 ) {
-  if (!state.running || !state.assetsReady) {
+  if (
+    !state.running ||
+    !state.assetsReady
+  ) {
     return;
   }
 
-  const now = performance.now();
+  const now =
+    performance.now();
 
   if (
     now - state.lastShotAt <
@@ -1124,11 +1604,12 @@ function fireProjectileFan(
 
   state.lastShotAt = now;
 
-  const swordCount = THREE.MathUtils.clamp(
-    state.level,
-    1,
-    CONFIG.maxManualSwords
-  );
+  const swordCount =
+    THREE.MathUtils.clamp(
+      state.level,
+      1,
+      CONFIG.maxManualSwords
+    );
 
   const fanCenter =
     (swordCount - 1) / 2;
@@ -1139,7 +1620,9 @@ function fireProjectileFan(
     );
 
   const primarySwordIndex =
-    Math.floor(swordCount / 2);
+    Math.floor(
+      swordCount / 2
+    );
 
   const secondaryTargets =
     getNearbySecondaryTargets(
@@ -1147,7 +1630,8 @@ function fireProjectileFan(
       swordCount - 1
     );
 
-  let secondaryTargetIndex = 0;
+  let secondaryTargetIndex =
+    0;
 
   for (
     let swordIndex = 0;
@@ -1167,7 +1651,8 @@ function fireProjectileFan(
       .normalize();
 
     const projectileTarget =
-      swordIndex === primarySwordIndex
+      swordIndex ===
+      primarySwordIndex
         ? target
         : secondaryTargets[
             secondaryTargetIndex++
@@ -1180,10 +1665,14 @@ function fireProjectileFan(
     );
   }
 
-  reticle.classList.add('is-firing');
+  reticle.classList.add(
+    'is-firing'
+  );
 
   window.setTimeout(() => {
-    reticle.classList.remove('is-firing');
+    reticle.classList.remove(
+      'is-firing'
+    );
   }, 90);
 }
 
@@ -1193,24 +1682,35 @@ function createProjectile(
   target = null
 ) {
   const normalizedDirection =
-    direction.clone().normalize();
+    direction
+      .clone()
+      .normalize();
 
-  const projectile = new THREE.Group();
-  const visual = createProjectileSwordVisual();
-  const trail = createProjectileTrail();
+  const projectile =
+    new THREE.Group();
+
+  const visual =
+    createProjectileSwordVisual();
+
+  const trail =
+    createProjectileTrail();
 
   projectile.add(visual);
   projectile.add(trail);
 
-  projectile.position.copy(origin);
-
-  projectile.quaternion.setFromUnitVectors(
-    PROJECTILE_FORWARD_AXIS,
-    normalizedDirection
+  projectile.position.copy(
+    origin
   );
 
-  projectile.userData.lockedQuaternion =
-    projectile.quaternion.clone();
+  projectile.quaternion
+    .setFromUnitVectors(
+      PROJECTILE_FORWARD_AXIS,
+      normalizedDirection
+    );
+
+  projectile.userData
+    .lockedQuaternion =
+      projectile.quaternion.clone();
 
   projectile.userData.direction =
     normalizedDirection;
@@ -1222,15 +1722,17 @@ function createProjectile(
         CONFIG.projectileSpeed
       );
 
-  projectile.userData.previousPosition =
-    origin.clone();
+  projectile.userData
+    .previousPosition =
+      origin.clone();
 
-  projectile.userData.distanceTravelled = 0;
+  projectile.userData
+    .distanceTravelled = 0;
+
   projectile.userData.age = 0;
   projectile.userData.target = target;
 
   projectiles.push(projectile);
-
   scene.add(projectile);
 }
 
@@ -1239,34 +1741,42 @@ function createProjectileTrail() {
     projectileTrailTemplate =
       new THREE.Group();
 
-    const trail = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        0.018,
-        0.15,
-        2.7,
-        10,
-        1,
-        true
-      ),
-      new THREE.MeshBasicMaterial({
-        color: 0x62eaff,
-        transparent: true,
-        opacity: 0.3,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        blending:
-          THREE.AdditiveBlending,
-        toneMapped: false
-      })
+    const trail =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.018,
+          0.15,
+          2.7,
+          10,
+          1,
+          true
+        ),
+
+        new THREE.MeshBasicMaterial({
+          color: 0x62eaff,
+          transparent: true,
+          opacity: 0.3,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          blending:
+            THREE.AdditiveBlending,
+          toneMapped: false
+        })
+      );
+
+    trail.rotation.x =
+      Math.PI / 2;
+
+    trail.position.z =
+      1.34;
+
+    projectileTrailTemplate.add(
+      trail
     );
-
-    trail.rotation.x = Math.PI / 2;
-    trail.position.z = 1.34;
-
-    projectileTrailTemplate.add(trail);
   }
 
-  return projectileTrailTemplate.clone(true);
+  return projectileTrailTemplate
+    .clone(true);
 }
 
 function updateProjectiles(delta) {
@@ -1277,10 +1787,15 @@ function updateProjectiles(delta) {
     projectileIndex -= 1
   ) {
     const projectile =
-      projectiles[projectileIndex];
+      projectiles[
+        projectileIndex
+      ];
 
-    const data = projectile.userData;
-    const target = data.target;
+    const data =
+      projectile.userData;
+
+    const target =
+      data.target;
 
     data.age += delta;
 
@@ -1294,17 +1809,22 @@ function updateProjectiles(delta) {
       data.age >=
         CONFIG.projectileHomingDelay
     ) {
-      target.getWorldPosition(tempTarget);
+      target.getWorldPosition(
+        tempTarget
+      );
 
       homingDirection
         .copy(tempTarget)
-        .sub(projectile.position)
+        .sub(
+          projectile.position
+        )
         .normalize();
 
       const steeringAmount =
         1 -
         Math.exp(
-          -CONFIG.projectileHomingStrength *
+          -CONFIG
+            .projectileHomingStrength *
             delta
         );
 
@@ -1321,11 +1841,14 @@ function updateProjectiles(delta) {
           CONFIG.projectileSpeed
         );
 
-      data.lockedQuaternion.setFromUnitVectors(
-        PROJECTILE_FORWARD_AXIS,
-        data.direction
-      );
-    } else if (!hasActiveTarget) {
+      data.lockedQuaternion
+        .setFromUnitVectors(
+          PROJECTILE_FORWARD_AXIS,
+          data.direction
+        );
+    } else if (
+      !hasActiveTarget
+    ) {
       data.target = null;
     }
 
@@ -1333,17 +1856,19 @@ function updateProjectiles(delta) {
       projectile.position
     );
 
-    projectile.position.addScaledVector(
-      data.velocity,
-      delta
-    );
+    projectile.position
+      .addScaledVector(
+        data.velocity,
+        delta
+      );
 
     projectile.quaternion.copy(
       data.lockedQuaternion
     );
 
     data.distanceTravelled +=
-      CONFIG.projectileSpeed * delta;
+      CONFIG.projectileSpeed *
+      delta;
 
     let collided = false;
 
@@ -1369,27 +1894,39 @@ function updateProjectiles(delta) {
       const meteor =
         meteors[meteorIndex];
 
-      collisionSegment.closestPointToPoint(
-        meteor.position,
-        true,
-        closestPoint
-      );
+      collisionSegment
+        .closestPointToPoint(
+          meteor.position,
+          true,
+          closestPoint
+        );
 
       const collisionRadius =
-        meteor.userData.radius + 0.22;
+        meteor.userData.radius +
+        0.22;
 
       const distanceSquared =
-        closestPoint.distanceToSquared(
-          meteor.position
-        );
+        closestPoint
+          .distanceToSquared(
+            meteor.position
+          );
 
       if (
         distanceSquared <=
-        collisionRadius * collisionRadius
+        collisionRadius *
+          collisionRadius
       ) {
-        registerHit(meteor.position);
-        removeMeteor(meteorIndex);
-        removeProjectile(projectileIndex);
+        registerHit(
+          meteor.position
+        );
+
+        removeMeteor(
+          meteorIndex
+        );
+
+        removeProjectile(
+          projectileIndex
+        );
 
         collided = true;
 
@@ -1402,184 +1939,152 @@ function updateProjectiles(delta) {
       data.distanceTravelled >=
         CONFIG.projectileRange
     ) {
-      removeProjectile(projectileIndex);
+      removeProjectile(
+        projectileIndex
+      );
     }
   }
 }
 
 function removeProjectile(index) {
   const [projectile] =
-    projectiles.splice(index, 1);
+    projectiles.splice(
+      index,
+      1
+    );
 
   if (projectile) {
-    scene.remove(projectile);
+    scene.remove(
+      projectile
+    );
   }
 }
 
-function getMuzzlePosition(target) {
-  target.set(0, -0.8, -4);
+function getMuzzlePosition(
+  target
+) {
+  if (aimMuzzle) {
+    return aimMuzzle
+      .getWorldPosition(
+        target
+      );
+  }
 
-  return player.localToWorld(target);
+  target.set(
+    0,
+    -0.8,
+    -4
+  );
+
+  return player.localToWorld(
+    target
+  );
 }
 
 function getMeteorXBoundary() {
-  /*
-   * Phải kiểm tra màn hình nhỏ nhất trước
-   * vì các điều kiện <= bị chồng lấp.
-   */
-
-  /*
-   * Mobile và tablet nhỏ:
-   * khoảng X từ -1.5 đến 1.5.
-   */
   if (innerWidth <= 900) {
     return 1.5;
   }
 
-  /*
-   * Tablet ngang hoặc laptop nhỏ:
-   * khoảng X từ -3 đến 3.
-   */
   if (innerWidth <= 1200) {
     return 3;
   }
 
-  /*
-   * Tablet ngang hoặc laptop nhỏ:
-   * khoảng X từ -4 đến 4.
-   */
   if (innerWidth <= 1500) {
     return 4;
   }
 
-  /*
-   * Tablet ngang hoặc laptop nhỏ:
-   * khoảng X từ -4 đến 4.
-   */
   if (innerWidth <= 1800) {
     return 5;
   }
 
-  /*
-   * Màn hình lớn hơn 1800 chưa có
-   * cấu hình riêng nên dùng [-8, 8].
-   */
   return 6;
 }
 
 function spawnMeteor() {
-  const meteor = new THREE.Group();
+  const meteor =
+    new THREE.Group();
 
-  meteor.userData.isMeteor = true;
+  meteor.userData.isMeteor =
+    true;
 
-  const visual = createMeteorVisual();
+  const visual =
+    createMeteorVisual();
 
-  const size = THREE.MathUtils.randFloat(
-    0.72,
-    1.35
-  );
+  const size =
+    THREE.MathUtils.randFloat(
+      0.72,
+      1.35
+    );
 
   visual.scale.setScalar(size);
 
   meteor.add(visual);
 
-  /*
-   * Meteor được phép spawn trong vùng nguồn
-   * rộng từ -9 đến 9.
-   */
   const spawnX =
-    THREE.MathUtils.randFloat(-6, 6);
+    THREE.MathUtils.randFloat(
+      -6,
+      6
+    );
 
-  /*
-   * Lấy giới hạn X theo chiều rộng
-   * màn hình tại thời điểm spawn.
-   */
   const xBoundary =
     getMeteorXBoundary();
 
   meteor.position.set(
-    /*
-    * Vị trí trái/phải.
-    */
     spawnX,
 
-    /*
-    * Spawn ở vùng cao.
-    */
     THREE.MathUtils.randFloat(
       CONFIG.meteorSpawnMinY,
       CONFIG.meteorSpawnMaxY
     ),
 
-    /*
-    * Tất cả meteor bắt đầu từ xa
-    * tại mặt phẳng Z = -62.
-    */
     -62
   );
 
-  meteor.userData.visual = visual;
+  meteor.userData.visual =
+    visual;
 
-  /*
-   * Lưu biên X để kiểm tra khi meteor
-   * đã bay tới phạm vi hợp lệ.
-   */
   meteor.userData.xBoundary =
     xBoundary;
 
-  /*
-   * Meteor nằm ngoài biên trái:
-   * thêm vận tốc X dương để bay sang phải.
-   */
-  if (spawnX < -xBoundary) {
-    meteor.userData.horizontalSpeed =
-      CONFIG.meteorXReturnSpeed;
+  if (
+    spawnX < -xBoundary
+  ) {
+    meteor.userData
+      .horizontalSpeed =
+        CONFIG
+          .meteorXReturnSpeed;
+  } else if (
+    spawnX > xBoundary
+  ) {
+    meteor.userData
+      .horizontalSpeed =
+        -CONFIG
+          .meteorXReturnSpeed;
+  } else {
+    meteor.userData
+      .horizontalSpeed = 0;
   }
 
-  /*
-   * Meteor nằm ngoài biên phải:
-   * thêm vận tốc X âm để bay sang trái.
-   */
-  else if (spawnX > xBoundary) {
-    meteor.userData.horizontalSpeed =
-      -CONFIG.meteorXReturnSpeed;
-  }
+  const meteorSpeedMultiplier =
+    1 +
+    Math.min(
+      state.score / 10000,
+      0.6
+    );
 
-  /*
-   * Meteor đã nằm trong range:
-   * không di chuyển theo X.
-   */
-  else {
-    meteor.userData.horizontalSpeed =
-      0;
-  }
-
-  /*
-   * Tốc độ rơi xuống theo chiều Y âm.
-   */
   meteor.userData.fallSpeed =
-    CONFIG.meteorFallSpeed +
-    Math.min(
-      state.score / 2500,
-      2.5
-    );
+    CONFIG.meteorFallSpeed *
+    meteorSpeedMultiplier;
 
-  /*
-  * Tốc độ bay ra theo chiều Z dương,
-  * từ -62 về phía camera và người chơi.
-  */
   meteor.userData.forwardSpeed =
-    CONFIG.meteorOutSpeed +
-    Math.min(
-      state.score / 900,
-      2.5
-    );
+    CONFIG.meteorOutSpeed *
+    meteorSpeedMultiplier;
 
   meteor.userData.radius =
     0.72 * size;
 
   meteors.push(meteor);
-
   scene.add(meteor);
 }
 
@@ -1593,80 +2098,56 @@ function updateMeteors(delta) {
     const meteor =
       meteors[index];
 
-    /*
-     * Bảo vệ trường hợp mảng meteor
-     * bị thay đổi khi game kết thúc.
-     */
     if (!meteor) {
       continue;
     }
 
-    /*
-    * Meteor có horizontalSpeed khác 0
-    * sẽ đồng thời bay theo phương X.
-    */
     if (
-      meteor.userData.horizontalSpeed !== 0
+      meteor.userData
+        .horizontalSpeed !== 0
     ) {
       meteor.position.x +=
-        meteor.userData.horizontalSpeed *
+        meteor.userData
+          .horizontalSpeed *
         delta;
 
       const xBoundary =
-        meteor.userData.xBoundary;
+        meteor.userData
+          .xBoundary;
 
-      /*
-      * Meteor đang bay từ bên trái sang phải.
-      * Khi chạm biên trái thì dừng chuyển động X.
-      */
       if (
-        meteor.userData.horizontalSpeed > 0 &&
-        meteor.position.x >= -xBoundary
+        meteor.userData
+          .horizontalSpeed > 0 &&
+        meteor.position.x >=
+          -xBoundary
       ) {
         meteor.position.x =
           -xBoundary;
 
-        meteor.userData.horizontalSpeed =
-          0;
-      }
-
-      /*
-      * Meteor đang bay từ bên phải sang trái.
-      * Khi chạm biên phải thì dừng chuyển động X.
-      */
-      else if (
-        meteor.userData.horizontalSpeed < 0 &&
-        meteor.position.x <= xBoundary
+        meteor.userData
+          .horizontalSpeed = 0;
+      } else if (
+        meteor.userData
+          .horizontalSpeed < 0 &&
+        meteor.position.x <=
+          xBoundary
       ) {
         meteor.position.x =
           xBoundary;
 
-        meteor.userData.horizontalSpeed =
-          0;
+        meteor.userData
+          .horizontalSpeed = 0;
       }
     }
 
-    /*
-    * Giảm Y để meteor bay xuống dưới.
-    */
     meteor.position.y -=
       meteor.userData.fallSpeed *
       delta;
 
-    /*
-     * Tăng Z để meteor bay từ -62
-     * ra phía camera và người chơi.
-     */
     meteor.position.z +=
       meteor.userData.forwardSpeed *
       delta;
 
-    /*
-     * Meteor gây sát thương khi:
-     *
-     * - Bay tới gần người chơi theo Z.
-     * - Hoặc rơi quá thấp theo Y.
-     */
     if (
       meteor.position.z > 7.5 ||
       meteor.position.y <
@@ -1681,10 +2162,6 @@ function updateMeteors(delta) {
         impactPosition
       );
 
-      /*
-       * damagePlayer() có thể gọi
-       * endGame() và xóa toàn bộ meteor.
-       */
       if (!state.running) {
         return;
       }
@@ -1694,40 +2171,42 @@ function updateMeteors(delta) {
 
 function removeMeteor(index) {
   const [meteor] =
-    meteors.splice(index, 1);
+    meteors.splice(
+      index,
+      1
+    );
 
-  if (meteor) {
-    /*
-     * Nếu meteor đang bị một kiếm tự động giữ,
-     * giải phóng mục tiêu của kiếm đó.
-     */
-    const autoSwordOwner =
-      meteor.userData.autoSwordOwner;
-
-    if (
-      autoSwordOwner?.userData.target ===
-      meteor
-    ) {
-      /*
-       * Target biến mất:
-       * chỉ giải phóng target.
-       *
-       * Kiếm đang trong lượt sẽ đứng yên
-       * tại vị trí hiện tại và tìm meteor mới.
-       */
-      releaseAutonomousSwordTarget(
-        autoSwordOwner
-      );
-    }
-
-    meteor.userData.autoSwordOwner = null;
-
-    if (aimedMeteor === meteor) {
-      aimedMeteor = null;
-    }
-
-    scene.remove(meteor);
+  if (!meteor) {
+    return;
   }
+
+  const autoSwordOwner =
+    meteor.userData
+      .autoSwordOwner;
+
+  if (
+    autoSwordOwner?.userData
+      .target === meteor
+  ) {
+    autoSwordOwner.userData
+      .lastTargetPosition
+      .copy(
+        meteor.position
+      );
+
+    releaseAutonomousSwordTarget(
+      autoSwordOwner
+    );
+  }
+
+  meteor.userData
+    .autoSwordOwner = null;
+
+  if (aimedMeteor === meteor) {
+    aimedMeteor = null;
+  }
+
+  scene.remove(meteor);
 }
 
 function getBackSwordCount(level) {
@@ -1735,41 +2214,33 @@ function getBackSwordCount(level) {
     return 0;
   }
 
-  /*
-   * Level 2–5:
-   * số kiếm sau lưng bằng Level.
-   */
-  if (level <= CONFIG.maxManualSwords) {
+  if (
+    level <=
+    CONFIG.maxManualSwords
+  ) {
     return level;
   }
 
-  /*
-   * Level 6–10:
-   *
-   * Level 6  = 4 kiếm
-   * Level 7  = 3 kiếm
-   * Level 8  = 2 kiếm
-   * Level 9  = 1 kiếm
-   * Level 10 = 0 kiếm
-   */
   return Math.max(
     0,
+
     CONFIG.maxManualSwords -
-      (level - CONFIG.maxManualSwords)
+      (
+        level -
+        CONFIG.maxManualSwords
+      )
   );
 }
 
-function getAutonomousSwordCount(level) {
-  /*
-   * Level 1–5  = 0 kiếm tự động
-   * Level 6    = 1 kiếm tự động
-   * Level 7    = 2 kiếm tự động
-   * ...
-   * Level 10   = 5 kiếm tự động
-   */
+function getAutonomousSwordCount(
+  level
+) {
   return THREE.MathUtils.clamp(
-    level - CONFIG.maxManualSwords,
+    level -
+      CONFIG.maxManualSwords,
+
     0,
+
     CONFIG.maxManualSwords
   );
 }
@@ -1792,23 +2263,19 @@ function updateBackSwordFan(level) {
   const fanSwordCount =
     getBackSwordCount(level);
 
-  if (!aimRig || fanSwordCount === 0) {
+  if (
+    !aimRig ||
+    fanSwordCount === 0
+  ) {
     return;
   }
 
-  backSwordFan = new THREE.Group();
+  backSwordFan =
+    new THREE.Group();
 
   backSwordFan.name =
     `level-${level}-persistent-back-sword-fan`;
 
-  /*
-   * Vị trí của toàn bộ dàn kiếm
-   * so với nhân vật:
-   *
-   * X: trái/phải
-   * Y: lên/xuống
-   * Z: trước/sau
-   */
   backSwordFan.position.set(
     0,
     -1.5,
@@ -1816,11 +2283,13 @@ function updateBackSwordFan(level) {
   );
 
   const fanCenter =
-    (fanSwordCount - 1) / 2;
+    (fanSwordCount - 1) /
+    2;
 
   const spacing =
     THREE.MathUtils.degToRad(
-      CONFIG.backSwordFanSpacingDeg
+      CONFIG
+        .backSwordFanSpacingDeg
     );
 
   for (
@@ -1829,76 +2298,72 @@ function updateBackSwordFan(level) {
     swordIndex += 1
   ) {
     const angle =
-        (swordIndex - fanCenter) *
-        spacing;
+      (swordIndex - fanCenter) *
+      spacing;
 
-    /*
-    * Pivot chịu trách nhiệm tạo góc hình quạt.
-    */
-    const swordPivot = new THREE.Group();
+    const swordPivot =
+      new THREE.Group();
 
     swordPivot.position.set(
-        Math.sin(angle) * 1.35,
-        1.28 + Math.cos(angle) * 0.12,
-        0
+      Math.sin(angle) * 1.35,
+
+      1.28 +
+        Math.cos(angle) *
+          0.12,
+
+      0
     );
 
-    swordPivot.rotation.z = -angle;
+    swordPivot.rotation.z =
+      -angle;
 
-    /*
-    * Sword chỉ chịu trách nhiệm đưa mũi kiếm lên trên.
-    */
     const sword =
-        createSwordVisual('held');
+      createSwordVisual('held');
 
     sword.scale.setScalar(
-        swordAsset ? 5 : 0.25
+      swordAsset
+        ? 5
+        : 0.25
     );
 
-    sword.position.set(0, 0, 0);
+    sword.position.set(
+      0,
+      0,
+      0
+    );
 
     sword.rotation.set(
-        Math.PI / 2,
-        0,
-        0
+      Math.PI / 2,
+      0,
+      0
     );
 
-    sword.traverse((node) => {
-        if (!node.isMesh) {
-        return;
-        }
-
-        node.castShadow = false;
-        node.receiveShadow = false;
-    });
-
     swordPivot.add(sword);
-    backSwordFan.add(swordPivot);
+
+    backSwordFan.add(
+      swordPivot
+    );
   }
 
   aimRig.add(backSwordFan);
 }
 
-function releaseAutonomousSwordTarget(sword) {
-  const target = sword.userData.target;
+function releaseAutonomousSwordTarget(
+  sword
+) {
+  const target =
+    sword.userData.target;
 
-  /*
-   * Chỉ giải phóng nếu meteor thực sự
-   * đang thuộc về thanh kiếm này.
-   */
   if (
-    target?.userData.autoSwordOwner === sword
+    target?.userData
+      .autoSwordOwner === sword
   ) {
-    target.userData.autoSwordOwner = null;
+    target.userData
+      .autoSwordOwner = null;
   }
 
-  sword.userData.target = null;
-}
-
-function enterAutonomousSwordOrbit(sword) {
-  releaseAutonomousSwordTarget(sword);
-
-  sword.userData.isOrbiting = true;
+  sword.userData.target =
+    null;
 }
 
 function getAutonomousSwordOrbitPosition(
@@ -1907,17 +2372,11 @@ function getAutonomousSwordOrbitPosition(
   target
 ) {
   const safeSwordCount =
-    Math.max(1, swordCount);
+    Math.max(
+      1,
+      swordCount
+    );
 
-  /*
-   * Khoảng cách góc giữa hai kiếm:
-   *
-   * 1 kiếm = 360°
-   * 2 kiếm = 180°
-   * 3 kiếm = 120°
-   * 4 kiếm = 90°
-   * 5 kiếm = 72°
-   */
   const angleStep =
     (Math.PI * 2) /
     safeSwordCount;
@@ -1930,21 +2389,20 @@ function getAutonomousSwordOrbitPosition(
     playerWorldPosition
   );
 
-  /*
-   * Quỹ đạo tròn nằm trên mặt phẳng XZ.
-   * Giá trị Y cố định.
-   */
   target.set(
     playerWorldPosition.x +
       Math.cos(angle) *
-        CONFIG.autoSwordOrbitRadius,
+        CONFIG
+          .autoSwordOrbitRadius,
 
     playerWorldPosition.y +
-      CONFIG.autoSwordOrbitHeight,
+      CONFIG
+        .autoSwordOrbitHeight,
 
     playerWorldPosition.z +
       Math.sin(angle) *
-        CONFIG.autoSwordOrbitRadius
+        CONFIG
+          .autoSwordOrbitRadius
   );
 
   return target;
@@ -1954,19 +2412,17 @@ function prepareAutonomousSwordMaterials(
   root
 ) {
   root.traverse((node) => {
-    if (!node.isMesh || !node.material) {
+    if (
+      !node.isMesh ||
+      !node.material
+    ) {
       return;
     }
 
-    /*
-     * GLTF clone thường vẫn dùng chung
-     * material với model gốc.
-     *
-     * Phải clone material để hiệu ứng vàng
-     * không ảnh hưởng đạn kiếm.
-     */
     const sourceMaterials =
-      Array.isArray(node.material)
+      Array.isArray(
+        node.material
+      )
         ? node.material
         : [node.material];
 
@@ -1976,24 +2432,23 @@ function prepareAutonomousSwordMaterials(
           const material =
             sourceMaterial.clone();
 
-          /*
-           * Lưu diện mạo ban đầu để có thể
-           * trả kiếm về màu bình thường.
-           */
           material.userData
             .autoSwordBaseAppearance = {
               color:
                 material.color
-                  ? material.color.getHex()
+                  ? material.color
+                      .getHex()
                   : null,
 
               emissive:
                 material.emissive
-                  ? material.emissive.getHex()
+                  ? material.emissive
+                      .getHex()
                   : null,
 
               emissiveIntensity:
-                material.emissiveIntensity,
+                material
+                  .emissiveIntensity,
 
               metalness:
                 material.metalness,
@@ -2007,7 +2462,9 @@ function prepareAutonomousSwordMaterials(
       );
 
     node.material =
-      Array.isArray(node.material)
+      Array.isArray(
+        node.material
+      )
         ? clonedMaterials
         : clonedMaterials[0];
   });
@@ -2018,16 +2475,24 @@ function setAutonomousSwordGolden(
   enabled
 ) {
   sword.traverse((node) => {
-    if (!node.isMesh || !node.material) {
+    if (
+      !node.isMesh ||
+      !node.material
+    ) {
       return;
     }
 
     const materials =
-      Array.isArray(node.material)
+      Array.isArray(
+        node.material
+      )
         ? node.material
         : [node.material];
 
-    for (const material of materials) {
+    for (
+      const material
+      of materials
+    ) {
       const base =
         material.userData
           .autoSwordBaseAppearance;
@@ -2036,233 +2501,98 @@ function setAutonomousSwordGolden(
         continue;
       }
 
-      /*
-       * Thay màu bề mặt.
-       */
       if (
         material.color &&
         base.color !== null
       ) {
         material.color.setHex(
           enabled
-            ? CONFIG.autoSwordGoldColor
+            ? CONFIG
+                .autoSwordGoldColor
             : base.color
         );
       }
 
-      /*
-       * Thay màu phát sáng.
-       */
       if (
         material.emissive &&
         base.emissive !== null
       ) {
-        material.emissive.setHex(
-          enabled
-            ? CONFIG.autoSwordGoldEmissive
-            : base.emissive
-        );
+        material.emissive
+          .setHex(
+            enabled
+              ? CONFIG
+                  .autoSwordGoldEmissive
+              : base.emissive
+          );
       }
 
-      /*
-       * Thay cường độ phát sáng.
-       */
       if (
-        typeof material.emissiveIntensity ===
+        typeof material
+          .emissiveIntensity ===
         'number'
       ) {
-        material.emissiveIntensity =
-          enabled
-            ? CONFIG
-                .autoSwordGoldEmissiveIntensity
-            : base.emissiveIntensity;
+        material
+          .emissiveIntensity =
+            enabled
+              ? CONFIG
+                  .autoSwordGoldEmissiveIntensity
+              : base
+                  .emissiveIntensity;
       }
 
-      /*
-       * Khi hóa vàng, tăng tính kim loại
-       * và giảm độ nhám.
-       */
       if (
-        typeof material.metalness ===
+        typeof material
+          .metalness ===
         'number'
       ) {
         material.metalness =
           enabled
             ? Math.max(
-                base.metalness ?? 0,
+                base.metalness ??
+                  0,
+
                 0.75
               )
             : base.metalness;
       }
 
       if (
-        typeof material.roughness ===
+        typeof material
+          .roughness ===
         'number'
       ) {
         material.roughness =
           enabled
             ? Math.min(
-                base.roughness ?? 1,
+                base.roughness ??
+                  1,
+
                 0.24
               )
             : base.roughness;
       }
 
-      material.needsUpdate = true;
+      material.needsUpdate =
+        true;
     }
   });
 
-  /*
-   * Bật hoặc tắt đèn vàng đi kèm.
-   */
-  if (sword.userData.goldLight) {
-    sword.userData.goldLight.visible =
-      enabled;
-  }
-
-  /*
-   * Trail vàng chỉ xuất hiện trên thanh kiếm
-   * đang giữ lượt tấn công.
-   */
-  if (sword.userData.goldTrail) {
-    sword.userData.goldTrail.visible =
-      enabled;
-  }
-
-  sword.userData.isGolden = enabled;
+  sword.userData.isGolden =
+    enabled;
 }
 
-function createAutonomousSwordTrail() {
-  const trailLength =
-    CONFIG.autoSwordTrailLength;
-
-  /*
-   * Hai geometry được dùng chung cho tối đa
-   * năm kiếm tự động, tránh tạo lại dữ liệu GPU.
-   */
-  if (!autoSwordTrailOuterGeometry) {
-    autoSwordTrailOuterGeometry =
-      new THREE.CylinderGeometry(
-        0.025,
-        0.32,
-        trailLength,
-        14,
-        1,
-        true
-      );
-  }
-
-  if (!autoSwordTrailCoreGeometry) {
-    autoSwordTrailCoreGeometry =
-      new THREE.CylinderGeometry(
-        0.012,
-        0.105,
-        trailLength * 0.86,
-        10,
-        1,
-        true
-      );
-  }
-
-  const trailGroup =
+function createAutonomousSword(
+  swordIndex
+) {
+  const sword =
     new THREE.Group();
 
-  trailGroup.name =
-    'autonomous-sword-gold-trail';
+  const visual =
+    createProjectileSwordVisual();
 
-  /*
-   * Mặc định tắt trail.
-   * Trail chỉ bật khi kiếm giữ lượt.
-   */
-  trailGroup.visible = false;
-
-  /*
-   * Lớp hào quang vàng cam bên ngoài.
-   */
-  const outerTrail =
-    new THREE.Mesh(
-      autoSwordTrailOuterGeometry,
-
-      new THREE.MeshBasicMaterial({
-        color: 0xffa31a,
-        transparent: true,
-
-        opacity:
-          CONFIG.autoSwordTrailOpacity *
-          0.48,
-
-        side: THREE.DoubleSide,
-        depthWrite: false,
-
-        blending:
-          THREE.AdditiveBlending,
-
-        toneMapped: false
-      })
-    );
-
-  /*
-   * Kiếm hướng theo local -Z.
-   * Trail kéo dài về phía local +Z.
-   */
-  outerTrail.rotation.x =
-    Math.PI / 2;
-
-  outerTrail.position.z =
-    trailLength / 2;
-
-  outerTrail.renderOrder = 4;
-
-  /*
-   * Lõi sáng vàng nhạt giúp trail
-   * vẫn nhìn rõ khi kiếm ở xa camera.
-   */
-  const coreTrail =
-    new THREE.Mesh(
-      autoSwordTrailCoreGeometry,
-
-      new THREE.MeshBasicMaterial({
-        color: 0xfff2a1,
-        transparent: true,
-
-        opacity:
-          CONFIG.autoSwordTrailOpacity,
-
-        side: THREE.DoubleSide,
-        depthWrite: false,
-
-        blending:
-          THREE.AdditiveBlending,
-
-        toneMapped: false
-      })
-    );
-
-  coreTrail.rotation.x =
-    Math.PI / 2;
-
-  coreTrail.position.z =
-    trailLength * 0.43;
-
-  coreTrail.renderOrder = 5;
-
-  trailGroup.add(
-    outerTrail,
-    coreTrail
+  prepareAutonomousSwordMaterials(
+    visual
   );
-
-  return trailGroup;
-}
-
-function createAutonomousSword(swordIndex) {
-  const sword = new THREE.Group();
-  const visual = createProjectileSwordVisual();
-
-  /*
-   * Tách material của kiếm tự động
-   * khỏi material của đạn kiếm.
-   */
-  prepareAutonomousSwordMaterials(visual);
 
   sword.scale.setScalar(
     CONFIG.autoSwordScale
@@ -2271,85 +2601,41 @@ function createAutonomousSword(swordIndex) {
   sword.name =
     `autonomous-sword-${swordIndex + 1}`;
 
-  sword.userData.target = null;
-  sword.userData.slotIndex = swordIndex;
+  sword.userData.target =
+    null;
 
-  /*
-   * Thứ tự hàng đợi được quyết định đúng
-   * lúc kiếm chuyển sang trạng thái tự động.
-   */
-  sword.userData.queueOrder =
-    nextAutonomousSwordOrder;
+  sword.userData.slotIndex =
+    swordIndex;
 
-  nextAutonomousSwordOrder += 1;
+  sword.userData
+    .isWaveMember = false;
 
-  /*
-   * Số meteor đã chém trong lượt hiện tại.
-   */
-  sword.userData.turnKills = 0;
+  sword.userData.hasStruck =
+    false;
 
-  /*
-   * Chỉ một kiếm được đặt thành true.
-   */
-  sword.userData.isQueueActive = false;
+  sword.userData.hasReturned =
+    false;
 
-  /*
-   * Kiếm mới chưa đến lượt sẽ bay quanh
-   */
-  sword.userData.isOrbiting = true;
+  sword.userData
+    .lastTargetPosition =
+      new THREE.Vector3();
+
   sword.add(visual);
 
-  /*
-   * Đèn vàng chỉ bật khi kiếm giữ lượt.
-   */
-  const goldLight =
-    new THREE.PointLight(
-      CONFIG.autoSwordGoldColor,
-      CONFIG.autoSwordGoldLightIntensity,
-      6,
-      2
-    );
-
-  goldLight.visible = false;
-  goldLight.castShadow = false;
-
-  sword.userData.goldLight =
-    goldLight;
-
-  sword.add(goldLight);
-
-  /*
-   * Tạo trail riêng cho thanh kiếm này.
-   *
-   * Geometry được dùng chung nhưng material
-   * là riêng, nên có thể dispose khi xóa kiếm.
-   */
-  const goldTrail =
-    createAutonomousSwordTrail();
-
-  sword.userData.goldTrail =
-    goldTrail;
-
-  sword.add(goldTrail);
-
-  /*
-   * Kiếm mới mặc định chưa hóa vàng.
-   * Lệnh này cũng giữ trail ở trạng thái tắt.
-   */
   setAutonomousSwordGolden(
     sword,
-    false
+    true
   );
 
-  /*
-   * Đặt kiếm tại vị trí chờ ban đầu.
-   */
   getAutonomousSwordOrbitPosition(
     swordIndex,
+
     Math.max(
-        1,
-        autonomousSwords.length + 1
+      1,
+      autonomousSwords.length +
+        1
     ),
+
     autoSwordOrbitPosition
   );
 
@@ -2361,184 +2647,73 @@ function createAutonomousSword(swordIndex) {
     AUTO_SWORD_IDLE_QUATERNION
   );
 
-  autonomousSwords.push(sword);
+  autonomousSwords.push(
+    sword
+  );
 
   scene.add(sword);
 }
 
-function getOrderedAutonomousSwords() {
-  return [...autonomousSwords].sort(
-    (swordA, swordB) => {
-      return (
-        swordA.userData.queueOrder -
-        swordB.userData.queueOrder
-      );
-    }
-  );
-}
-
-function activateAutonomousSword(sword) {
-  if (!sword) {
-    activeAutonomousSword = null;
-
-    return;
-  }
-
-  /*
-   * Chỉ một kiếm được quyền tấn công.
-   */
-  for (
-    const otherSword of autonomousSwords
-  ) {
-    otherSword.userData.isQueueActive =
-      false;
-
-    /*
-     * Các kiếm không giữ lượt trở lại
-     * màu bình thường.
-    */
-    setAutonomousSwordGolden(
-      otherSword,
-      false
-    );
-  }
-
-  activeAutonomousSword = sword;
-
-  sword.userData.isQueueActive = true;
-  sword.userData.isOrbiting = false;
-  sword.userData.turnKills = 0;
-
-  /*
-   * Kiếm đang giữ lượt hóa vàng,
-   * kể cả khi chưa tìm thấy meteor.
-   */
-  setAutonomousSwordGolden(
-    sword,
-    true
-  );
-
-  /*
-   * Không cần target ngay tại đây.
-   * updateAutonomousSwords() sẽ tìm
-   * meteor gần nhất trong frame tiếp theo.
-   */
-}
-
-function activateNextAutonomousSword(
-  completedSword = null
+function removeAutonomousSword(
+  sword
 ) {
-  const orderedSwords =
-    getOrderedAutonomousSwords();
-
-  if (orderedSwords.length === 0) {
-    activeAutonomousSword = null;
-
-    return;
-  }
-
-  let nextIndex = 0;
-
-  if (completedSword) {
-    const completedIndex =
-      orderedSwords.indexOf(
-        completedSword
-      );
-
-    if (completedIndex !== -1) {
-      nextIndex =
-        (completedIndex + 1) %
-        orderedSwords.length;
-    }
-  }
-
-  activateAutonomousSword(
-    orderedSwords[nextIndex]
-  );
-}
-
-function completeAutonomousSwordTurn(sword) {
-  /*
-   * Kiếm đã chém đủ 20 meteor:
-   * giải phóng mục tiêu và trở về vòng.
-   */
-  enterAutonomousSwordOrbit(sword);
-
-  sword.userData.isQueueActive = false;
-
-  if (activeAutonomousSword === sword) {
-    activeAutonomousSword = null;
-  }
-
-  /*
-   * Kiếm vừa hoàn thành 20 meteor
-   * trở lại màu bình thường.
-  */
-  setAutonomousSwordGolden(
-    sword,
-    false
+  releaseAutonomousSwordTarget(
+    sword
   );
 
-  /*
-   * Chuyển quyền tấn công sang kiếm
-   * tiếp theo theo queueOrder.
-   */
-  activateNextAutonomousSword(sword);
-}
-
-function removeAutonomousSword(sword) {
-  releaseAutonomousSwordTarget(sword);
-
-  if (activeAutonomousSword === sword) {
-    activeAutonomousSword = null;
-  }
-
-  /*
-   * Xóa kiếm khỏi scene trước khi
-   * giải phóng tài nguyên GPU.
-   */
   sword.removeFromParent();
 
-  /*
-   * Một material có thể được nhiều mesh
-   * trong cùng thanh kiếm sử dụng.
-   *
-   * Set ngăn dispose cùng một material
-   * nhiều lần.
-   */
-  const disposedMaterials = new Set();
+  const disposedMaterials =
+    new Set();
 
   sword.traverse((node) => {
-    if (!node.isMesh || !node.material) {
+    if (
+      !node.isMesh ||
+      !node.material
+    ) {
       return;
     }
 
     const materials =
-      Array.isArray(node.material)
+      Array.isArray(
+        node.material
+      )
         ? node.material
         : [node.material];
 
-    for (const material of materials) {
+    for (
+      const material
+      of materials
+    ) {
       if (
         !material ||
-        disposedMaterials.has(material)
+        disposedMaterials.has(
+          material
+        )
       ) {
         continue;
       }
 
       material.dispose();
-      disposedMaterials.add(material);
+
+      disposedMaterials.add(
+        material
+      );
     }
   });
 }
 
-function syncAutonomousSwords(level) {
+function syncAutonomousSwords(
+  level
+) {
   const desiredCount =
-    getAutonomousSwordCount(level);
+    getAutonomousSwordCount(
+      level
+    );
 
-  /*
-   * Tạo thêm kiếm khi tăng Level.
-   */
+  const previousCount =
+    autonomousSwords.length;
+
   while (
     autonomousSwords.length <
     desiredCount
@@ -2548,10 +2723,6 @@ function syncAutonomousSwords(level) {
     );
   }
 
-  /*
-   * Xóa kiếm thừa nếu số lượng giảm
-   * hoặc game được đặt lại.
-   */
   while (
     autonomousSwords.length >
     desiredCount
@@ -2559,96 +2730,162 @@ function syncAutonomousSwords(level) {
     const sword =
       autonomousSwords.pop();
 
-    removeAutonomousSword(sword);
+    removeAutonomousSword(
+      sword
+    );
   }
 
-  /*
-   * Cập nhật vị trí chờ tương đối
-   * của từng kiếm.
-   */
   autonomousSwords.forEach(
-    (sword, swordIndex) => {
+    (
+      sword,
+      swordIndex
+    ) => {
       sword.userData.slotIndex =
         swordIndex;
     }
   );
 
-  /*
-   * Nếu chưa có kiếm đang tấn công,
-   * chọn kiếm có queueOrder nhỏ nhất.
-   */
   if (
-    !activeAutonomousSword &&
+    previousCount === 0 &&
     autonomousSwords.length > 0
   ) {
-    activateNextAutonomousSword();
+    autoSwordGroupPhase =
+      'cooldown';
+
+    autoSwordWaveCooldownRemaining =
+      CONFIG
+        .autoSwordWaveCooldown;
+  }
+
+  if (
+    autonomousSwords.length === 0
+  ) {
+    autoSwordGroupPhase =
+      'cooldown';
+
+    autoSwordWaveCooldownRemaining =
+      CONFIG
+        .autoSwordWaveCooldown;
   }
 }
 
 function removeAllAutonomousSwords() {
-  while (autonomousSwords.length) {
+  while (
+    autonomousSwords.length
+  ) {
     const sword =
       autonomousSwords.pop();
 
-    removeAutonomousSword(sword);
+    removeAutonomousSword(
+      sword
+    );
   }
 
-  activeAutonomousSword = null;
-  nextAutonomousSwordOrder = 0;
   autoSwordOrbitAngle = 0;
+
+  autoSwordGroupPhase =
+    'cooldown';
+
+  autoSwordWaveCooldownRemaining =
+    CONFIG.autoSwordWaveCooldown;
 }
 
-function findNearestAvailableMeteor() {
-  /*
-   * Lấy vị trí thế giới của nhân vật.
-   */
+function getAvailableAutonomousSwordTargets() {
   player.getWorldPosition(
     playerWorldPosition
   );
 
+  return meteors
+    .filter((meteor) => {
+      return (
+        meteor.parent &&
+        !meteor.userData
+          .autoSwordOwner
+      );
+    })
+    .sort(
+      (
+        meteorA,
+        meteorB
+      ) => {
+        /*
+         * Xét tất cả meteor trên sân
+         * và sắp xếp từ gần đến xa.
+         */
+        return (
+          playerWorldPosition
+            .distanceToSquared(
+              meteorA.position
+            ) -
+          playerWorldPosition
+            .distanceToSquared(
+              meteorB.position
+            )
+        );
+      }
+    );
+}
+
+function assignAutonomousSwordTarget(
+  sword,
+  target
+) {
+  if (
+    !target ||
+    !target.parent ||
+    target.userData
+      .autoSwordOwner
+  ) {
+    return null;
+  }
+
+  releaseAutonomousSwordTarget(
+    sword
+  );
+
+  sword.userData.target =
+    target;
+
+  target.userData
+    .autoSwordOwner =
+      sword;
+
+  target.getWorldPosition(
+    sword.userData
+      .lastTargetPosition
+  );
+
+  return target;
+}
+
+function findNearestAvailableMeteorToPoint(
+  origin
+) {
   let nearestMeteor = null;
-  let nearestDistanceSquared = Infinity;
 
-  /*
-   * Dùng bình phương khoảng cách để
-   * không phải tính căn bậc hai.
-   */
-  const maximumTargetDistanceSquared =
-    CONFIG.autoSwordTargetRadius ** 2;
+  let nearestDistanceSquared =
+    Infinity;
 
-  for (const meteor of meteors) {
+  for (
+    const meteor of meteors
+  ) {
     /*
-     * Bỏ qua meteor đã bị xóa hoặc
-     * đang bị kiếm tự động khác giữ.
+     * Chỉ bỏ qua meteor đã bị xóa
+     * hoặc đang được kiếm khác giữ.
      */
     if (
       !meteor.parent ||
-      meteor.userData.autoSwordOwner
+      meteor.userData
+        .autoSwordOwner
     ) {
       continue;
     }
 
     const distanceSquared =
-      playerWorldPosition
-        .distanceToSquared(
-          meteor.position
-        );
+      origin.distanceToSquared(
+        meteor.position
+      );
 
-    /*
-     * Meteor nằm ngoài vùng bảo vệ:
-     * kiếm tự động không được chọn.
-     */
-    if (
-      distanceSquared >
-      maximumTargetDistanceSquared
-    ) {
-      continue;
-    }
-
-    /*
-     * Trong số meteor hợp lệ,
-     * chọn meteor gần nhất.
-     */
     if (
       distanceSquared <
       nearestDistanceSquared
@@ -2656,223 +2893,271 @@ function findNearestAvailableMeteor() {
       nearestDistanceSquared =
         distanceSquared;
 
-      nearestMeteor = meteor;
+      nearestMeteor =
+        meteor;
     }
   }
 
   return nearestMeteor;
 }
 
-function assignAutonomousSwordTarget(sword) {
-  const target =
-    findNearestAvailableMeteor();
+function startAutonomousSwordWave() {
+  const waveSwords =
+    [...autonomousSwords]
+      .sort(
+        (
+          swordA,
+          swordB
+        ) => {
+          return (
+            swordA.userData
+              .slotIndex -
+            swordB.userData
+              .slotIndex
+          );
+        }
+      );
 
-  if (!target) {
-    return null;
+  if (
+    waveSwords.length === 0
+  ) {
+    return false;
   }
 
-  /*
-   * Khóa hai chiều:
-   *
-   * sword biết meteor của mình.
-   * meteor biết sword đang giữ nó.
-   *
-   * Vì vậy hai kiếm không thể chọn
-   * cùng một meteor.
-   */
-  sword.userData.target = target;
-  target.userData.autoSwordOwner = sword;
+  const availableTargets =
+    getAvailableAutonomousSwordTargets();
 
   /*
-   * Kiếm đã rời quỹ đạo để tấn công.
+   * Chỉ bắt đầu đợt khi số meteor
+   * hợp lệ ít nhất bằng số kiếm.
    */
-  sword.userData.isOrbiting = false;
+  if (
+    availableTargets.length <
+    waveSwords.length
+  ) {
+    return false;
+  }
 
-  return target;
+  waveSwords.forEach(
+    (
+      sword,
+      swordIndex
+    ) => {
+      sword.userData
+        .isWaveMember = true;
+
+      sword.userData
+        .hasStruck = false;
+
+      sword.userData
+        .hasReturned = false;
+
+      assignAutonomousSwordTarget(
+        sword,
+
+        availableTargets[
+          swordIndex
+        ]
+      );
+    }
+  );
+
+  autoSwordGroupPhase =
+    'attacking';
+
+  return true;
 }
 
-function updateAutonomousSwords(delta) {
-  const activeSwords = [
-    ...autonomousSwords
-  ];
+function updateAutonomousSwordOrbit(
+  sword,
+  delta
+) {
+  getAutonomousSwordOrbitPosition(
+    sword.userData.slotIndex,
 
-  /*
-   * Chỉ kiếm đang đứng đầu hàng đợi
-   * được phép giữ target.
-   */
-  for (const sword of activeSwords) {
-    if (sword === activeAutonomousSword) {
-      sword.userData.isQueueActive = true;
+    Math.max(
+      1,
+      autonomousSwords.length
+    ),
 
+    autoSwordOrbitPosition
+  );
+
+  const followAmount =
+    1 -
+    Math.exp(
+      -CONFIG
+        .autoSwordOrbitFollowStrength *
+        delta
+    );
+
+  sword.position.lerp(
+    autoSwordOrbitPosition,
+    followAmount
+  );
+
+  player.getWorldPosition(
+    playerWorldPosition
+  );
+
+  autoSwordDirection
+    .copy(sword.position)
+    .sub(playerWorldPosition);
+
+  autoSwordDirection.y = 0;
+
+  if (
+    autoSwordDirection.lengthSq() >
+    0.000001
+  ) {
+    autoSwordDirection
+      .normalize();
+
+    sword.quaternion
+      .setFromUnitVectors(
+        PROJECTILE_FORWARD_AXIS,
+        autoSwordDirection
+      );
+  }
+}
+
+function beginAutonomousSwordGroupReturn() {
+  for (
+    const sword
+    of autonomousSwords
+  ) {
+    if (
+      !sword.userData
+        .isWaveMember
+    ) {
       continue;
     }
 
-    sword.userData.isQueueActive = false;
-    sword.userData.isOrbiting = true;
+    releaseAutonomousSwordTarget(
+      sword
+    );
 
+    sword.userData.hasReturned =
+      false;
+  }
+
+  autoSwordGroupPhase =
+    'returning';
+}
+
+function finishAutonomousSwordGroupReturn() {
+  for (
+    const sword
+    of autonomousSwords
+  ) {
+    sword.userData
+      .isWaveMember = false;
+
+    sword.userData
+      .hasStruck = false;
+
+    sword.userData
+      .hasReturned = false;
+
+    releaseAutonomousSwordTarget(
+      sword
+    );
+  }
+
+  autoSwordGroupPhase =
+    'cooldown';
+
+  /*
+   * Chỉ bắt đầu 5 giây mới sau khi
+   * toàn bộ nhóm đã về quỹ đạo.
+   */
+  autoSwordWaveCooldownRemaining =
+    CONFIG.autoSwordWaveCooldown;
+}
+
+function updateAutonomousSwordAttackers(
+  delta
+) {
+  const waveSwords =
+    autonomousSwords.filter(
+      (sword) => {
+        return sword.userData
+          .isWaveMember;
+      }
+    );
+
+  if (
+    waveSwords.length === 0
+  ) {
+    finishAutonomousSwordGroupReturn();
+
+    return;
+  }
+
+  for (
+    const sword
+    of waveSwords
+  ) {
     /*
-     * Bảo đảm kiếm không trong lượt
-     * không giữ bất kỳ meteor nào.
+     * Kiếm chém xong đứng yên,
+     * chờ các kiếm còn lại.
      */
-    if (sword.userData.target) {
+    if (
+      sword.userData.hasStruck
+    ) {
+      continue;
+    }
+
+    let target =
+      sword.userData.target;
+
+    const hasValidTarget =
+      target &&
+      target.parent &&
+      meteors.includes(target) &&
+      target.userData
+        .autoSwordOwner ===
+        sword;
+
+    if (!hasValidTarget) {
       releaseAutonomousSwordTarget(
         sword
       );
-    }
-  }
-
-  /*
-   * Kiểm tra target hiện tại của kiếm
-   * đang giữ lượt.
-   */
-  if (activeAutonomousSword) {
-    const currentTarget =
-      activeAutonomousSword.userData.target;
-
-    if (currentTarget) {
-      const hasValidTarget =
-        currentTarget.parent &&
-        meteors.includes(currentTarget) &&
-        currentTarget.userData
-          .autoSwordOwner ===
-          activeAutonomousSword;
 
       /*
-       * Target biến mất:
-       * giải phóng target nhưng không
-       * đưa kiếm trở lại quỹ đạo.
+       * Target cũ đã bị phá:
+       * chọn meteor chưa bị giữ gần
+       * vị trí cuối của target cũ nhất.
        */
-      if (!hasValidTarget) {
-        releaseAutonomousSwordTarget(
-          activeAutonomousSword
+      target =
+        findNearestAvailableMeteorToPoint(
+          sword.userData
+            .lastTargetPosition
+        );
+
+      if (target) {
+        assignAutonomousSwordTarget(
+          sword,
+          target
         );
       }
     }
 
     /*
-     * Nếu không có target, tìm meteor
-     * gần nhất ở mỗi frame.
-     *
-     * Nếu chưa có meteor, hàm trả null
-     * và kiếm tiếp tục đứng yên.
-     */
-    if (
-      !activeAutonomousSword.userData
-        .target
-    ) {
-      assignAutonomousSwordTarget(
-        activeAutonomousSword
-      );
-    }
-  }
-
-  /*
-   * Chỉ các kiếm không giữ lượt mới
-   * được đưa vào nhóm quay quanh.
-   *
-   * Kiếm đang giữ lượt nhưng chưa thấy
-   * target bị loại khỏi mảng này nên
-   * nó sẽ đứng yên trong không gian.
-   */
-  const orbitingSwords =
-    activeSwords.filter((sword) => {
-      return (
-        sword !== activeAutonomousSword
-      );
-    });
-
-  autoSwordOrbitAngle +=
-    CONFIG.autoSwordOrbitSpeed *
-    delta;
-
-  autoSwordOrbitAngle %=
-    Math.PI * 2;
-
-  for (const sword of activeSwords) {
-    const isActiveSword =
-      sword === activeAutonomousSword;
-
-    const target =
-      sword.userData.target;
-
-    /*
-     * Kiếm không giữ lượt:
-     * bay quanh nhân vật và giãn đều
-     * trên toàn bộ chu vi.
-     */
-    if (!isActiveSword) {
-      const orbitIndex =
-        orbitingSwords.indexOf(sword);
-
-      const orbitSwordCount =
-        orbitingSwords.length;
-
-      getAutonomousSwordOrbitPosition(
-        orbitIndex,
-        orbitSwordCount,
-        autoSwordOrbitPosition
-      );
-
-      const orbitFollowAmount =
-        1 -
-        Math.exp(
-          -CONFIG
-            .autoSwordOrbitFollowStrength *
-            delta
-        );
-
-      sword.position.lerp(
-        autoSwordOrbitPosition,
-        orbitFollowAmount
-      );
-
-      player.getWorldPosition(
-        playerWorldPosition
-      );
-
-      /*
-       * Mũi kiếm hướng ra ngoài,
-       * chuôi kiếm hướng vào nhân vật.
-       */
-      autoSwordDirection
-        .copy(sword.position)
-        .sub(playerWorldPosition);
-
-      autoSwordDirection.y = 0;
-
-      if (
-        autoSwordDirection.lengthSq() >
-        0.000001
-      ) {
-        autoSwordDirection.normalize();
-
-        sword.quaternion
-          .setFromUnitVectors(
-            PROJECTILE_FORWARD_AXIS,
-            autoSwordDirection
-          );
-      }
-
-      continue;
-    }
-
-    /*
-     * Kiếm đang giữ lượt nhưng chưa
-     * tìm thấy meteor:
-     *
-     * Không thay đổi position.
-     * Không quay về quỹ đạo.
-     * Không có countdown.
+     * Nếu chưa có mục tiêu thay thế,
+     * kiếm đứng yên trong không gian.
      */
     if (!target) {
       continue;
     }
 
-    /*
-     * Kiếm đang giữ lượt và có target:
-     * bay đến chém meteor.
-     */
-    target.getWorldPosition(tempTarget);
+    target.getWorldPosition(
+      tempTarget
+    );
+
+    sword.userData
+      .lastTargetPosition
+      .copy(tempTarget);
 
     autoSwordDirection
       .copy(tempTarget)
@@ -2881,10 +3166,14 @@ function updateAutonomousSwords(delta) {
     const distanceToTarget =
       autoSwordDirection.length();
 
-    if (distanceToTarget > 0.0001) {
-      autoSwordDirection.divideScalar(
-        distanceToTarget
-      );
+    if (
+      distanceToTarget >
+      0.0001
+    ) {
+      autoSwordDirection
+        .divideScalar(
+          distanceToTarget
+        );
 
       sword.quaternion
         .setFromUnitVectors(
@@ -2903,54 +3192,362 @@ function updateAutonomousSwords(delta) {
 
     if (
       distanceToTarget <=
-      hitDistance + travelDistance
+      hitDistance +
+        travelDistance
     ) {
       const meteorIndex =
-        meteors.indexOf(target);
+        meteors.indexOf(
+          target
+        );
 
       const hitPosition =
-        target.position.clone();
+        tempTarget.clone();
 
-      /*
-       * Chỉ bỏ target hiện tại.
-       * Chưa đủ 20 meteor thì kiếm vẫn
-       * giữ lượt và tìm mục tiêu mới.
-       */
-      releaseAutonomousSwordTarget(sword);
+      releaseAutonomousSwordTarget(
+        sword
+      );
 
-      if (meteorIndex !== -1) {
-        sword.userData.turnKills += 1;
+      if (
+        meteorIndex !== -1
+      ) {
+        /*
+         * Mỗi kiếm chỉ được chém
+         * đúng một meteor trong đợt.
+         */
+        sword.userData.hasStruck =
+          true;
 
         registerHit(
           hitPosition,
-          CONFIG.autoSwordBurstColor
+          CONFIG
+            .autoSwordBurstColor
         );
 
-        removeMeteor(meteorIndex);
-
-        /*
-         * Chỉ khi đủ 20 meteor,
-         * kiếm mới quay về quỹ đạo và
-         * chuyển lượt cho kiếm tiếp theo.
-         */
-        if (
-          sword.userData.turnKills >=
-          CONFIG.autoSwordKillsPerTurn
-        ) {
-          completeAutonomousSwordTurn(
-            sword
-          );
-        }
+        removeMeteor(
+          meteorIndex
+        );
       }
 
       continue;
     }
 
-    sword.position.addScaledVector(
-      autoSwordDirection,
-      travelDistance
-    );
+    sword.position
+      .addScaledVector(
+        autoSwordDirection,
+        travelDistance
+      );
   }
+
+  const currentWaveSwords =
+    autonomousSwords.filter(
+      (sword) => {
+        return sword.userData
+          .isWaveMember;
+      }
+    );
+
+  if (
+    currentWaveSwords.length >
+      0 &&
+    currentWaveSwords.every(
+      (sword) => {
+        return sword.userData
+          .hasStruck;
+      }
+    )
+  ) {
+    beginAutonomousSwordGroupReturn();
+  }
+}
+
+function updateAutonomousSwordGroupReturn(
+  delta
+) {
+  const waveSwords =
+    autonomousSwords.filter(
+      (sword) => {
+        return sword.userData
+          .isWaveMember;
+      }
+    );
+
+  if (
+    waveSwords.length === 0
+  ) {
+    finishAutonomousSwordGroupReturn();
+
+    return;
+  }
+
+  for (
+    const sword
+    of waveSwords
+  ) {
+    getAutonomousSwordOrbitPosition(
+      sword.userData.slotIndex,
+
+      Math.max(
+        1,
+        autonomousSwords.length
+      ),
+
+      autoSwordOrbitPosition
+    );
+
+    if (
+      sword.userData.hasReturned
+    ) {
+      sword.position.copy(
+        autoSwordOrbitPosition
+      );
+
+      continue;
+    }
+
+    autoSwordDirection
+      .copy(
+        autoSwordOrbitPosition
+      )
+      .sub(sword.position);
+
+    const distanceToOrbit =
+      autoSwordDirection.length();
+
+    const travelDistance =
+      CONFIG
+        .autoSwordReturnSpeed *
+      delta;
+
+    if (
+      distanceToOrbit <=
+      CONFIG
+        .autoSwordReturnArrivalDistance +
+        travelDistance
+    ) {
+      sword.position.copy(
+        autoSwordOrbitPosition
+      );
+
+      sword.userData.hasReturned =
+        true;
+
+      player.getWorldPosition(
+        playerWorldPosition
+      );
+
+      autoSwordDirection
+        .copy(sword.position)
+        .sub(
+          playerWorldPosition
+        );
+
+      autoSwordDirection.y = 0;
+
+      if (
+        autoSwordDirection.lengthSq() >
+        0.000001
+      ) {
+        autoSwordDirection
+          .normalize();
+
+        sword.quaternion
+          .setFromUnitVectors(
+            PROJECTILE_FORWARD_AXIS,
+            autoSwordDirection
+          );
+      }
+
+      continue;
+    }
+
+    if (
+      distanceToOrbit >
+      0.0001
+    ) {
+      autoSwordDirection
+        .divideScalar(
+          distanceToOrbit
+        );
+
+      sword.quaternion
+        .setFromUnitVectors(
+          PROJECTILE_FORWARD_AXIS,
+          autoSwordDirection
+        );
+    }
+
+    sword.position
+      .addScaledVector(
+        autoSwordDirection,
+        travelDistance
+      );
+  }
+
+  const arrivalDistanceSquared =
+    CONFIG
+      .autoSwordReturnArrivalDistance **
+    2;
+
+  /*
+   * Kiếm được thêm giữa đợt không
+   * tham chiến, nhưng vẫn phải ở đúng
+   * quỹ đạo trước khi cooldown bắt đầu.
+   */
+  const allSwordsAreOnOrbit =
+    autonomousSwords.every(
+      (sword) => {
+        getAutonomousSwordOrbitPosition(
+          sword.userData.slotIndex,
+
+          Math.max(
+            1,
+            autonomousSwords.length
+          ),
+
+          autoSwordOrbitPosition
+        );
+
+        return (
+          sword.position
+            .distanceToSquared(
+              autoSwordOrbitPosition
+            ) <=
+          arrivalDistanceSquared
+        );
+      }
+    );
+
+  if (
+    waveSwords.every(
+      (sword) => {
+        return sword.userData
+          .hasReturned;
+      }
+    ) &&
+    allSwordsAreOnOrbit
+  ) {
+    finishAutonomousSwordGroupReturn();
+  }
+}
+
+function updateAutonomousSwords(
+  delta
+) {
+  if (
+    autonomousSwords.length === 0
+  ) {
+    return;
+  }
+
+  /*
+   * Khi đang trở về, khóa góc quỹ đạo
+   * để điểm đích không tiếp tục chạy.
+   */
+  if (
+    autoSwordGroupPhase !==
+    'returning'
+  ) {
+    autoSwordOrbitAngle +=
+      CONFIG.autoSwordOrbitSpeed *
+      delta;
+
+    autoSwordOrbitAngle %=
+      Math.PI * 2;
+  }
+
+  if (
+    autoSwordGroupPhase ===
+    'cooldown'
+  ) {
+    for (
+      const sword
+      of autonomousSwords
+    ) {
+      updateAutonomousSwordOrbit(
+        sword,
+        delta
+      );
+    }
+
+    autoSwordWaveCooldownRemaining =
+      Math.max(
+        0,
+
+        autoSwordWaveCooldownRemaining -
+          delta
+      );
+
+    /*
+     * Hết 5 giây nhưng chưa đủ meteor:
+     * nhóm tiếp tục quay và chờ.
+     */
+    if (
+      autoSwordWaveCooldownRemaining <=
+      0
+    ) {
+      startAutonomousSwordWave();
+    }
+
+    return;
+  }
+
+  if (
+    autoSwordGroupPhase ===
+    'attacking'
+  ) {
+    /*
+     * Kiếm mới được thêm giữa đợt
+     * chỉ quay và chờ đợt tiếp theo.
+     */
+    for (
+      const sword
+      of autonomousSwords
+    ) {
+      if (
+        !sword.userData
+          .isWaveMember
+      ) {
+        updateAutonomousSwordOrbit(
+          sword,
+          delta
+        );
+      }
+    }
+
+    updateAutonomousSwordAttackers(
+      delta
+    );
+
+    return;
+  }
+
+  if (
+    autoSwordGroupPhase ===
+    'returning'
+  ) {
+    for (
+      const sword
+      of autonomousSwords
+    ) {
+      if (
+        !sword.userData
+          .isWaveMember
+      ) {
+        updateAutonomousSwordOrbit(
+          sword,
+          delta
+        );
+      }
+    }
+
+    updateAutonomousSwordGroupReturn(
+      delta
+    );
+
+    return;
+  }
+
+  finishAutonomousSwordGroupReturn();
 }
 
 function updateLevelSwords(level) {
@@ -2959,11 +3556,15 @@ function updateLevelSwords(level) {
 }
 
 function advanceLevelProgress() {
-  if (state.level >= CONFIG.maxLevel) {
+  if (
+    state.level >=
+    CONFIG.maxLevel
+  ) {
     return false;
   }
 
-  state.levelHitProgress += 1;
+  state.levelHitProgress +=
+    1;
 
   if (
     state.levelHitProgress <
@@ -2984,17 +3585,21 @@ function advanceLevelProgress() {
 
   state.levelPoints = 0;
 
-  state.level = Math.min(
-    state.level + 1,
-    CONFIG.maxLevel
+  state.level =
+    Math.min(
+      state.level + 1,
+      CONFIG.maxLevel
+    );
+
+  updateLevelSwords(
+    state.level
   );
 
-  updateLevelSwords(state.level);
-
-  state.shake = Math.max(
-    state.shake,
-    0.1
-  );
+  state.shake =
+    Math.max(
+      state.shake,
+      0.1
+    );
 
   levelCard.classList.remove(
     'is-level-up'
@@ -3019,26 +3624,33 @@ function registerHit(
   position,
   burstColor = 0x71efff
 ) {
-  const now = performance.now();
+  const now =
+    performance.now();
 
   state.combo =
-    now - state.lastHitAt < 2200
-      ? Math.min(state.combo + 1, 9)
+    now - state.lastHitAt <
+      2200
+      ? Math.min(
+          state.combo + 1,
+          9
+        )
       : 1;
 
   state.lastHitAt = now;
 
-  const gained = 10 * state.combo;
+  const gained =
+    10 * state.combo;
 
   state.score += gained;
 
   const leveledUp =
     advanceLevelProgress();
 
-  state.shake = Math.max(
-    state.shake,
-    0.05
-  );
+  state.shake =
+    Math.max(
+      state.shake,
+      0.05
+    );
 
   createBurst(
     position,
@@ -3047,20 +3659,22 @@ function registerHit(
 
   showHitLabel(
     leveledUp
-        ? state.level >
+      ? state.level >
         CONFIG.maxManualSwords
         ? `LEVEL ${state.level} • ` +
-            `${getAutonomousSwordCount(state.level)} ` +
-            'KIẾM TỰ ĐỘNG'
+          `${getAutonomousSwordCount(state.level)} ` +
+          'KIẾM TỰ ĐỘNG'
         : `LEVEL ${state.level} • ` +
-            `${state.level} KIẾM`
-        : `TRÚNG • +${gained}`
+          `${state.level} KIẾM`
+      : `TRÚNG • +${gained}`
   );
 
   updateHud();
 }
 
-function damagePlayer(position) {
+function damagePlayer(
+  position
+) {
   state.shield -= 1;
   state.combo = 1;
   state.shake = 0.22;
@@ -3087,12 +3701,17 @@ function damagePlayer(position) {
       );
     }, 150);
 
-  if (state.shield <= 0) {
+  if (
+    state.shield <= 0
+  ) {
     endGame();
   }
 }
 
-function createBurst(position, color) {
+function createBurst(
+  position,
+  color
+) {
   const particleCount = 18;
 
   const positions =
@@ -3109,9 +3728,14 @@ function createBurst(position, color) {
   ) {
     velocities.push(
       new THREE.Vector3(
-        THREE.MathUtils.randFloatSpread(7),
-        THREE.MathUtils.randFloatSpread(7),
-        THREE.MathUtils.randFloatSpread(7)
+        THREE.MathUtils
+          .randFloatSpread(7),
+
+        THREE.MathUtils
+          .randFloatSpread(7),
+
+        THREE.MathUtils
+          .randFloatSpread(7)
       )
     );
   }
@@ -3121,6 +3745,7 @@ function createBurst(position, color) {
 
   geometry.setAttribute(
     'position',
+
     new THREE.BufferAttribute(
       positions,
       3
@@ -3144,13 +3769,17 @@ function createBurst(position, color) {
       material
     );
 
-  points.position.copy(position);
+  points.position.copy(
+    position
+  );
+
   points.userData.velocities =
     velocities;
-  points.userData.life = 0.56;
+
+  points.userData.life =
+    0.56;
 
   bursts.push(points);
-
   scene.add(points);
 }
 
@@ -3165,44 +3794,61 @@ function updateBursts(delta) {
       bursts[burstIndex];
 
     const positionAttribute =
-      burst.geometry.getAttribute(
-        'position'
-      );
+      burst.geometry
+        .getAttribute(
+          'position'
+        );
 
-    burst.userData.life -= delta;
+    burst.userData.life -=
+      delta;
 
     for (
       let index = 0;
       index <
-      burst.userData.velocities.length;
+      burst.userData
+        .velocities.length;
       index += 1
     ) {
       const velocity =
-        burst.userData.velocities[index];
+        burst.userData
+          .velocities[index];
 
-      const offset = index * 3;
+      const offset =
+        index * 3;
 
-      positionAttribute.array[offset] +=
+      positionAttribute.array[
+        offset
+      ] +=
         velocity.x * delta;
 
-      positionAttribute.array[offset + 1] +=
+      positionAttribute.array[
+        offset + 1
+      ] +=
         velocity.y * delta;
 
-      positionAttribute.array[offset + 2] +=
+      positionAttribute.array[
+        offset + 2
+      ] +=
         velocity.z * delta;
 
-      velocity.multiplyScalar(0.94);
+      velocity.multiplyScalar(
+        0.94
+      );
     }
 
-    positionAttribute.needsUpdate = true;
+    positionAttribute.needsUpdate =
+      true;
 
     burst.material.opacity =
       Math.max(
         0,
-        burst.userData.life / 0.56
+        burst.userData.life /
+          0.56
       );
 
-    if (burst.userData.life <= 0) {
+    if (
+      burst.userData.life <= 0
+    ) {
       bursts.splice(
         burstIndex,
         1
@@ -3221,9 +3867,14 @@ function startOrResumeGame() {
     return;
   }
 
-  if (state.overlayMode === 'pause') {
+  if (
+    state.overlayMode ===
+    'pause'
+  ) {
     state.running = true;
-    state.overlayMode = 'playing';
+
+    state.overlayMode =
+      'playing';
 
     startScreen.classList.add(
       'is-hidden'
@@ -3247,7 +3898,10 @@ function startOrResumeGame() {
 
   state.score = 0;
   state.combo = 1;
-  state.shield = CONFIG.startingShield;
+
+  state.shield =
+    CONFIG.startingShield;
+
   state.level = 1;
   state.levelPoints = 0;
   state.levelHitProgress = 0;
@@ -3255,7 +3909,9 @@ function startOrResumeGame() {
   state.lastShotAt = 0;
   state.lastHitAt = 0;
   state.running = true;
-  state.overlayMode = 'playing';
+
+  state.overlayMode =
+    'playing';
 
   updateHud();
 
@@ -3281,10 +3937,15 @@ function pauseGame() {
   }
 
   state.running = false;
-  state.overlayMode = 'pause';
 
-  continuousFireActive = false;
-  continuousFirePointerId = null;
+  state.overlayMode =
+    'pause';
+
+  continuousFireActive =
+    false;
+
+  continuousFirePointerId =
+    null;
 
   gameTitle.innerHTML =
     'Tạm dừng<br><em>giữ vững đội hình.</em>';
@@ -3311,28 +3972,35 @@ function pauseGame() {
 
 function endGame() {
   state.running = false;
-  state.overlayMode = 'gameover';
+
+  state.overlayMode =
+    'gameover';
 
   clearDynamicObjects();
 
-  continuousFireActive = false;
-  continuousFirePointerId = null;
+  continuousFireActive =
+    false;
 
-  if (state.score > state.bestScore) {
-    state.bestScore = state.score;
+  continuousFirePointerId =
+    null;
+
+  if (
+    state.score >
+    state.bestScore
+  ) {
+    state.bestScore =
+      state.score;
 
     writeBestScore(
       state.bestScore
     );
 
     bestScoreText.textContent =
-      formatScore(state.bestScore);
+      formatScore(
+        state.bestScore
+      );
   }
 
-  /*
-   * gameTitle đã là thẻ H1,
-   * vì vậy không tạo thêm H1 lồng bên trong.
-   */
   gameTitle.innerHTML =
     'Nhiệm vụ<br><em>đã kết thúc.</em>';
 
@@ -3363,20 +4031,27 @@ function clearDynamicObjects() {
   removeBackSwordFan();
   removeAllAutonomousSwords();
 
-  while (projectiles.length) {
+  while (
+    projectiles.length
+  ) {
     scene.remove(
       projectiles.pop()
     );
   }
 
-  while (meteors.length) {
+  while (
+    meteors.length
+  ) {
     scene.remove(
       meteors.pop()
     );
   }
 
-  while (bursts.length) {
-    const burst = bursts.pop();
+  while (
+    bursts.length
+  ) {
+    const burst =
+      bursts.pop();
 
     scene.remove(burst);
 
@@ -3387,35 +4062,46 @@ function clearDynamicObjects() {
 
 function updateHud() {
   scoreText.textContent =
-    formatScore(state.score);
+    formatScore(
+      state.score
+    );
 
   comboText.textContent =
     state.combo;
 
   shield.setAttribute(
     'aria-label',
+
     `${state.shield} điểm lá chắn`
   );
 
-  [...shield.children].forEach(
-    (bar, index) => {
-      bar.classList.toggle(
-        'is-empty',
-        index >= state.shield
-      );
-    }
-  );
+  [...shield.children]
+    .forEach(
+      (
+        bar,
+        index
+      ) => {
+        bar.classList.toggle(
+          'is-empty',
+
+          index >=
+            state.shield
+        );
+      }
+    );
 
   levelText.textContent =
     state.level;
 
   const displayedLevelPoints =
-    state.level >= CONFIG.maxLevel
+    state.level >=
+    CONFIG.maxLevel
       ? CONFIG.pointsPerLevel
       : state.levelPoints;
 
   const levelLabel =
-    state.level >= CONFIG.maxLevel
+    state.level >=
+    CONFIG.maxLevel
       ? `Level ${state.level}, cấp tối đa`
       : `${displayedLevelPoints} trên ` +
         `${CONFIG.pointsPerLevel} điểm cấp độ; ` +
@@ -3428,18 +4114,27 @@ function updateHud() {
     levelLabel
   );
 
-  [...levelProgress.children].forEach(
-    (bar, index) => {
-      bar.classList.toggle(
-        'is-filled',
-        index < displayedLevelPoints
-      );
-    }
-  );
+  [...levelProgress.children]
+    .forEach(
+      (
+        bar,
+        index
+      ) => {
+        bar.classList.toggle(
+          'is-filled',
+
+          index <
+            displayedLevelPoints
+        );
+      }
+    );
 }
 
-function showHitLabel(message) {
-  hitLabel.textContent = message;
+function showHitLabel(
+  message
+) {
+  hitLabel.textContent =
+    message;
 
   hitLabel.classList.add(
     'is-visible'
@@ -3457,8 +4152,12 @@ function showHitLabel(message) {
     }, 420);
 }
 
-function setStatus(message, variant) {
-  statusText.textContent = message;
+function setStatus(
+  message,
+  variant
+) {
+  statusText.textContent =
+    message;
 
   status.classList.toggle(
     'is-ready',
@@ -3472,10 +4171,11 @@ function setStatus(message, variant) {
 }
 
 function formatScore(value) {
-  return String(value).padStart(
-    4,
-    '0'
-  );
+  return String(value)
+    .padStart(
+      4,
+      '0'
+    );
 }
 
 function readBestScore() {
@@ -3485,6 +4185,7 @@ function readBestScore() {
         localStorage.getItem(
           'sword-meteor-best'
         ) ?? '0',
+
         10
       ) || 0
     );
@@ -3493,14 +4194,16 @@ function readBestScore() {
   }
 }
 
-function writeBestScore(value) {
+function writeBestScore(
+  value
+) {
   try {
     localStorage.setItem(
       'sword-meteor-best',
       String(value)
     );
   } catch {
-    // Trình duyệt đang chặn localStorage.
+    // localStorage bị chặn.
   }
 }
 
@@ -3520,6 +4223,7 @@ function updateAim(
       0,
       innerWidth
     ),
+
     THREE.MathUtils.clamp(
       clientY,
       0,
@@ -3535,8 +4239,11 @@ function updateAim(
 
   reticle.classList.toggle(
     'is-touch',
-    pointerType === 'touch' ||
-      pointerType === 'pen'
+
+    pointerType ===
+      'touch' ||
+    pointerType ===
+      'pen'
   );
 
   reticle.classList.toggle(
@@ -3549,14 +4256,16 @@ function updateAim(
     aimScreen.y
   );
 
-  aimedMeteor = findMeteorAtScreen(
-    aimScreen.x,
-    aimScreen.y
-  );
+  aimedMeteor =
+    findMeteorAtScreen(
+      aimScreen.x,
+      aimScreen.y
+    );
 }
 
 window.addEventListener(
   'pointermove',
+
   (event) => {
     updateAim(
       event.clientX,
@@ -3564,6 +4273,7 @@ window.addEventListener(
       event.pointerType
     );
   },
+
   {
     passive: true
   }
@@ -3571,10 +4281,12 @@ window.addEventListener(
 
 canvas.addEventListener(
   'pointerdown',
+
   (event) => {
     if (
       event.button !== 0 &&
-      event.pointerType !== 'touch'
+      event.pointerType !==
+        'touch'
     ) {
       return;
     }
@@ -3586,14 +4298,17 @@ canvas.addEventListener(
     );
 
     const isContinuousInput =
-      event.pointerType === 'touch' ||
-      event.pointerType === 'pen';
+      event.pointerType ===
+        'touch' ||
+      event.pointerType ===
+        'pen';
 
     if (isContinuousInput) {
       continuousFirePointerId =
         event.pointerId;
 
-      continuousFireActive = true;
+      continuousFireActive =
+        true;
 
       canvas.setPointerCapture?.(
         event.pointerId
@@ -3604,12 +4319,15 @@ canvas.addEventListener(
 
     shootAtAim();
   },
+
   {
     passive: false
   }
 );
 
-function stopContinuousFire(event) {
+function stopContinuousFire(
+  event
+) {
   if (
     event.pointerId !==
     continuousFirePointerId
@@ -3617,8 +4335,11 @@ function stopContinuousFire(event) {
     return;
   }
 
-  continuousFireActive = false;
-  continuousFirePointerId = null;
+  continuousFireActive =
+    false;
+
+  continuousFirePointerId =
+    null;
 }
 
 window.addEventListener(
@@ -3639,17 +4360,23 @@ window.addEventListener(
 
 window.addEventListener(
   'keydown',
+
   (event) => {
-    if (event.code === 'Space') {
+    if (
+      event.code === 'Space'
+    ) {
       event.preventDefault();
       shootAtAim();
     }
 
-    if (event.code === 'Escape') {
+    if (
+      event.code === 'Escape'
+    ) {
       if (state.running) {
         pauseGame();
       } else if (
-        state.overlayMode === 'pause'
+        state.overlayMode ===
+        'pause'
       ) {
         startOrResumeGame();
       }
@@ -3667,6 +4394,7 @@ window.addEventListener(
 
 document.addEventListener(
   'visibilitychange',
+
   () => {
     if (
       document.hidden &&
@@ -3679,14 +4407,19 @@ document.addEventListener(
 
 window.addEventListener(
   'resize',
+
   () => {
     camera.aspect =
-      innerWidth / innerHeight;
+      innerWidth /
+      innerHeight;
 
     camera.updateProjectionMatrix();
 
     renderer.setPixelRatio(
-      Math.min(devicePixelRatio, 2)
+      Math.min(
+        devicePixelRatio,
+        2
+      )
     );
 
     renderer.setSize(
@@ -3694,15 +4427,12 @@ window.addEventListener(
       innerHeight
     );
 
-    /*
-    * Cập nhật lại scale khi màn hình
-    * vượt qua mốc 900px.
-    */
     updateResponsivePlayerLayout();
 
     updateAim(
       aimScreen.x,
       aimScreen.y,
+
       reticle.classList.contains(
         'is-touch'
       )
@@ -3713,17 +4443,11 @@ window.addEventListener(
 );
 
 function updateResponsivePlayerLayout() {
-  const isCompactScreen =
+  const compactScreen =
     innerWidth <= 900;
 
-  /*
-   * Thu nhỏ toàn bộ:
-   * - Nhân vật
-   * - Kiếm cầm
-   * - BackSwordFan
-   */
   const playerScale =
-    isCompactScreen
+    compactScreen
       ? 0.78
       : 1;
 
@@ -3731,15 +4455,13 @@ function updateResponsivePlayerLayout() {
     playerScale
   );
 
-  /*
-   * Màn hình nhỏ:
-   * tăng Y để đưa cả khối lên trên.
-   */
   player.position.set(
     0,
-    isCompactScreen
+
+    compactScreen
       ? 1.2
       : 1,
+
     2.5
   );
 }
@@ -3749,67 +4471,86 @@ function updateBackground(
   elapsed
 ) {
   const positions =
-    stars.geometry.getAttribute(
-      'position'
-    );
+    stars.geometry
+      .getAttribute(
+        'position'
+      );
 
   for (
     let index = 2;
-    index < positions.array.length;
+    index <
+    positions.array.length;
     index += 3
   ) {
     positions.array[index] +=
       delta * 0.62;
 
-    if (positions.array[index] > 6) {
-      positions.array[index] = -85;
+    if (
+      positions.array[index] >
+      6
+    ) {
+      positions.array[index] =
+        -85;
     }
   }
 
-  positions.needsUpdate = true;
+  positions.needsUpdate =
+    true;
 
   horizon.rotation.z =
-    Math.sin(elapsed * 0.12) *
-    0.025;
+    Math.sin(
+      elapsed * 0.12
+    ) * 0.025;
 }
 
 function updateCamera(delta) {
-  state.shake = Math.max(
-    0,
-    state.shake - delta * 1.45
-  );
+  state.shake =
+    Math.max(
+      0,
+      state.shake -
+        delta * 1.45
+    );
 
-  const shake = state.shake;
+  const shake =
+    state.shake;
 
   camera.position.set(
     cameraBase.x +
-      THREE.MathUtils.randFloatSpread(
-        shake
-      ),
+      THREE.MathUtils
+        .randFloatSpread(
+          shake
+        ),
 
     cameraBase.y +
-      THREE.MathUtils.randFloatSpread(
-        shake
-      ),
+      THREE.MathUtils
+        .randFloatSpread(
+          shake
+        ),
 
     cameraBase.z +
-      THREE.MathUtils.randFloatSpread(
-        shake * 0.55
-      )
+      THREE.MathUtils
+        .randFloatSpread(
+          shake * 0.55
+        )
   );
 
-  camera.lookAt(cameraLookAt);
+  camera.lookAt(
+    cameraLookAt
+  );
 }
 
 function animate(timestamp) {
-  requestAnimationFrame(animate);
+  requestAnimationFrame(
+    animate
+  );
 
   timer.update(timestamp);
 
-  const delta = Math.min(
-    timer.getDelta(),
-    0.033
-  );
+  const delta =
+    Math.min(
+      timer.getDelta(),
+      0.033
+    );
 
   const elapsed =
     timer.getElapsed();
@@ -3823,28 +4564,38 @@ function animate(timestamp) {
   updateCamera(delta);
 
   if (state.running) {
-    if (continuousFireActive) {
+    if (
+      continuousFireActive
+    ) {
       shootAtAim();
     }
 
-    state.spawnTimer += delta;
+    state.spawnTimer +=
+      delta;
 
-    const spawnInterval = Math.max(
-      0.54,
-      CONFIG.meteorSpawnEvery -
-        state.score / 6500
-    );
+    const spawnInterval =
+      Math.max(
+        0.54,
+
+        CONFIG.meteorSpawnEvery -
+          state.score / 6500
+      );
 
     if (
       state.spawnTimer >=
       spawnInterval
     ) {
       state.spawnTimer = 0;
+
       spawnMeteor();
     }
 
     updateMeteors(delta);
-    updateAutonomousSwords(delta);
+
+    updateAutonomousSwords(
+      delta
+    );
+
     updateProjectiles(delta);
 
     if (
@@ -3866,27 +4617,35 @@ function animate(timestamp) {
 
 updateHud();
 
-requestAnimationFrame(animate);
+requestAnimationFrame(
+  animate
+);
 
-loadAssets().catch((error) => {
-  console.error(
-    'Không thể khởi tạo model, dùng hình học dự phòng.',
-    error
-  );
+loadAssets().catch(
+  (error) => {
+    console.error(
+      'Không thể khởi tạo model, dùng hình học dự phòng.',
+      error
+    );
 
-  swordAsset = null;
-  projectileSwordTemplate = null;
+    swordAsset = null;
 
-  setupPlayer(null);
+    projectileSwordTemplate =
+      null;
 
-  state.assetsReady = true;
-  startButton.disabled = false;
+    setupPlayer(null);
 
-  startLabel.textContent =
-    'Bắt đầu nhiệm vụ';
+    state.assetsReady = true;
 
-  setStatus(
-    'Sẵn sàng • hình học dựng sẵn',
-    'ready'
-  );
-});
+    startButton.disabled =
+      false;
+
+    startLabel.textContent =
+      'Bắt đầu nhiệm vụ';
+
+    setStatus(
+      'Sẵn sàng • hình học dựng sẵn',
+      'ready'
+    );
+  }
+);
