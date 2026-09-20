@@ -184,7 +184,11 @@ a {
   gap: 10px;
   width: 126px;
   transform: translateY(-50%);
-  pointer-events: none;
+  /*
+   * HUD phải nhận pointer để thao tác không
+   * xuyên xuống canvas và kích hoạt ngắm/bắn.
+   */
+  pointer-events: auto;
 }
 
 .hud-card {

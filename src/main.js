@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const canvas = document.querySelector('#game');
+const hud = document.querySelector('.hud');
 const scoreText = document.querySelector('#score');
 const pauseButton = document.querySelector('#pause-button');
 const shield = document.querySelector('#shield');
@@ -239,6 +240,12 @@ let damageFlashTimer = 0;
 let aimedMeteor = null;
 let continuousFirePointerId = null;
 let continuousFireActive = false;
+
+/*
+ * True khi chuột hoặc cảm ứng
+ * đang nằm trong vùng HUD.
+ */
+let pointerIsOverHud = false;
 let autoSwordOrbitAngle = 0;
 
 /*
@@ -1520,6 +1527,14 @@ function shootFromScreen(
 }
 
 function shootAtAim() {
+  /*
+   * Không cho Space hoặc bắn liên hoàn
+   * hoạt động khi con trỏ đang ở HUD.
+   */
+  if (pointerIsOverHud) {
+    return;
+  }
+
   shootFromScreen(
     aimScreen.x,
     aimScreen.y
@@ -4280,6 +4295,92 @@ pauseButton.addEventListener(
   }
 );
 
+function isPointInsideHud(
+  clientX,
+  clientY
+) {
+  const bounds =
+    hud.getBoundingClientRect();
+
+  return (
+    clientX >= bounds.left &&
+    clientX <= bounds.right &&
+    clientY >= bounds.top &&
+    clientY <= bounds.bottom
+  );
+}
+
+function stopContinuousFireForPointer(
+  pointerId
+) {
+  /*
+   * Chỉ dừng đúng pointer đang
+   * giữ chế độ bắn liên hoàn.
+   */
+  if (
+    pointerId !==
+    continuousFirePointerId
+  ) {
+    return;
+  }
+
+  continuousFireActive =
+    false;
+
+  continuousFirePointerId =
+    null;
+
+  /*
+   * Giải phóng pointer capture nếu
+   * ngón tay được kéo từ canvas vào HUD.
+   */
+  if (
+    canvas.hasPointerCapture?.(
+      pointerId
+    )
+  ) {
+    canvas.releasePointerCapture(
+      pointerId
+    );
+  }
+}
+
+hud.addEventListener(
+  'pointerdown',
+  (event) => {
+    pointerIsOverHud =
+      true;
+
+    /*
+     * Ẩn tâm ngắm ngay khi người chơi
+     * chạm vào HUD.
+     */
+    reticle.classList.remove(
+      'is-visible'
+    );
+
+    stopContinuousFireForPointer(
+      event.pointerId
+    );
+
+    /*
+     * Nút Pause vẫn phải nhận click.
+     * Các ô HUD còn lại không thực hiện
+     * hành vi mặc định nào.
+     */
+    if (
+      !event.target.closest(
+        '#pause-button'
+      )
+    ) {
+      event.preventDefault();
+    }
+  },
+  {
+    passive: false
+  }
+);
+
 function updateAim(
   clientX,
   clientY,
@@ -4333,15 +4434,41 @@ function updateAim(
 
 window.addEventListener(
   'pointermove',
-
   (event) => {
+    pointerIsOverHud =
+      isPointInsideHud(
+        event.clientX,
+        event.clientY
+      );
+
+    /*
+     * Khi đi vào HUD:
+     * - Không cập nhật hướng ngắm.
+     * - Ẩn tâm ngắm.
+     * - Dừng bắn liên hoàn.
+     */
+    if (pointerIsOverHud) {
+      reticle.classList.remove(
+        'is-visible'
+      );
+
+      stopContinuousFireForPointer(
+        event.pointerId
+      );
+
+      return;
+    }
+
+    /*
+     * Khi rời HUD, việc ngắm hoạt động
+     * trở lại như bình thường.
+     */
     updateAim(
       event.clientX,
       event.clientY,
       event.pointerType
     );
   },
-
   {
     passive: true
   }
@@ -4358,6 +4485,8 @@ canvas.addEventListener(
     ) {
       return;
     }
+
+    pointerIsOverHud = false;
 
     updateAim(
       event.clientX,
@@ -4396,18 +4525,9 @@ canvas.addEventListener(
 function stopContinuousFire(
   event
 ) {
-  if (
-    event.pointerId !==
-    continuousFirePointerId
-  ) {
-    return;
-  }
-
-  continuousFireActive =
-    false;
-
-  continuousFirePointerId =
-    null;
+  stopContinuousFireForPointer(
+    event.pointerId
+  );
 }
 
 window.addEventListener(
