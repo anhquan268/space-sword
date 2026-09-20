@@ -20,6 +20,7 @@ const hitLabel = document.querySelector('#hit-label');
 const bestScoreText = document.querySelector('#best-score');
 const isCompactScreen = innerWidth <= 900;
 const isMediumScreen = innerWidth <= 1200;
+const isDesktopScreen = innerWidth <= 1800;
 
 const CONFIG = Object.freeze({
   projectileSpeed: 52,
@@ -93,7 +94,10 @@ const CONFIG = Object.freeze({
   // Tốc độ meteor rơi theo phương Z.
   meteorOutSpeed: 5,
 
-  randomSpeed: THREE.MathUtils.randFloat(1, 1.5),
+  // Tốc độ meteor trượt vào biên X hợp lệ.
+  meteorXReturnSpeed: isCompactScreen ? 0.3 : 0.7,
+
+  randomSpeed: 1,
 
   // Độ cao bắt đầu spawn.
   meteorSpawnMinY: 27,
@@ -1418,6 +1422,51 @@ function getMuzzlePosition(target) {
   return player.localToWorld(target);
 }
 
+function getMeteorXBoundary() {
+  /*
+   * Phải kiểm tra màn hình nhỏ nhất trước
+   * vì các điều kiện <= bị chồng lấp.
+   */
+
+  /*
+   * Mobile và tablet nhỏ:
+   * khoảng X từ -1.5 đến 1.5.
+   */
+  if (innerWidth <= 900) {
+    return 1.5;
+  }
+
+  /*
+   * Tablet ngang hoặc laptop nhỏ:
+   * khoảng X từ -3 đến 3.
+   */
+  if (innerWidth <= 1200) {
+    return 3;
+  }
+
+  /*
+   * Tablet ngang hoặc laptop nhỏ:
+   * khoảng X từ -4 đến 4.
+   */
+  if (innerWidth <= 1500) {
+    return 4;
+  }
+
+  /*
+   * Tablet ngang hoặc laptop nhỏ:
+   * khoảng X từ -4 đến 4.
+   */
+  if (innerWidth <= 1800) {
+    return 5;
+  }
+
+  /*
+   * Màn hình lớn hơn 1800 chưa có
+   * cấu hình riêng nên dùng [-8, 8].
+   */
+  return 6;
+}
+
 function spawnMeteor() {
   const meteor = new THREE.Group();
 
@@ -1434,14 +1483,25 @@ function spawnMeteor() {
 
   meteor.add(visual);
 
+  /*
+   * Meteor được phép spawn trong vùng nguồn
+   * rộng từ -9 đến 9.
+   */
+  const spawnX =
+    THREE.MathUtils.randFloat(-6, 6);
+
+  /*
+   * Lấy giới hạn X theo chiều rộng
+   * màn hình tại thời điểm spawn.
+   */
+  const xBoundary =
+    getMeteorXBoundary();
+
   meteor.position.set(
     /*
     * Vị trí trái/phải.
     */
-    THREE.MathUtils.randFloat(
-      isCompactScreen ? 2 : isMediumScreen ? 3 : 8,
-      isCompactScreen ? 2 : isMediumScreen ? 3 : 8
-    ),
+    spawnX,
 
     /*
     * Spawn ở vùng cao.
@@ -1461,10 +1521,44 @@ function spawnMeteor() {
   meteor.userData.visual = visual;
 
   /*
-  * Tốc độ rơi xuống theo chiều Y âm.
-  */
+   * Lưu biên X để kiểm tra khi meteor
+   * đã bay tới phạm vi hợp lệ.
+   */
+  meteor.userData.xBoundary =
+    xBoundary;
+
+  /*
+   * Meteor nằm ngoài biên trái:
+   * thêm vận tốc X dương để bay sang phải.
+   */
+  if (spawnX < -xBoundary) {
+    meteor.userData.horizontalSpeed =
+      CONFIG.meteorXReturnSpeed;
+  }
+
+  /*
+   * Meteor nằm ngoài biên phải:
+   * thêm vận tốc X âm để bay sang trái.
+   */
+  else if (spawnX > xBoundary) {
+    meteor.userData.horizontalSpeed =
+      -CONFIG.meteorXReturnSpeed;
+  }
+
+  /*
+   * Meteor đã nằm trong range:
+   * không di chuyển theo X.
+   */
+  else {
+    meteor.userData.horizontalSpeed =
+      0;
+  }
+
+  /*
+   * Tốc độ rơi xuống theo chiều Y âm.
+   */
   meteor.userData.fallSpeed =
-    CONFIG.meteorFallSpeed * CONFIG.randomSpeed +
+    CONFIG.meteorFallSpeed +
     Math.min(
       state.score / 2500,
       2.5
@@ -1475,7 +1569,7 @@ function spawnMeteor() {
   * từ -62 về phía camera và người chơi.
   */
   meteor.userData.forwardSpeed =
-    CONFIG.meteorOutSpeed * CONFIG.randomSpeed +
+    CONFIG.meteorOutSpeed +
     Math.min(
       state.score / 900,
       2.5
@@ -1508,8 +1602,53 @@ function updateMeteors(delta) {
     }
 
     /*
-     * Giảm Y để meteor bay xuống dưới.
-     */
+    * Meteor có horizontalSpeed khác 0
+    * sẽ đồng thời bay theo phương X.
+    */
+    if (
+      meteor.userData.horizontalSpeed !== 0
+    ) {
+      meteor.position.x +=
+        meteor.userData.horizontalSpeed *
+        delta;
+
+      const xBoundary =
+        meteor.userData.xBoundary;
+
+      /*
+      * Meteor đang bay từ bên trái sang phải.
+      * Khi chạm biên trái thì dừng chuyển động X.
+      */
+      if (
+        meteor.userData.horizontalSpeed > 0 &&
+        meteor.position.x >= -xBoundary
+      ) {
+        meteor.position.x =
+          -xBoundary;
+
+        meteor.userData.horizontalSpeed =
+          0;
+      }
+
+      /*
+      * Meteor đang bay từ bên phải sang trái.
+      * Khi chạm biên phải thì dừng chuyển động X.
+      */
+      else if (
+        meteor.userData.horizontalSpeed < 0 &&
+        meteor.position.x <= xBoundary
+      ) {
+        meteor.position.x =
+          xBoundary;
+
+        meteor.userData.horizontalSpeed =
+          0;
+      }
+    }
+
+    /*
+    * Giảm Y để meteor bay xuống dưới.
+    */
     meteor.position.y -=
       meteor.userData.fallSpeed *
       delta;
