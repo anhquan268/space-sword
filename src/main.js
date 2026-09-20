@@ -18,6 +18,8 @@ const statusText = document.querySelector('#status-text');
 const reticle = document.querySelector('#reticle');
 const hitLabel = document.querySelector('#hit-label');
 const bestScoreText = document.querySelector('#best-score');
+const isCompactScreen = innerWidth <= 900;
+const isMediumScreen = innerWidth <= 1200;
 
 const CONFIG = Object.freeze({
   projectileSpeed: 52,
@@ -85,9 +87,22 @@ const CONFIG = Object.freeze({
   // Màu burst khi kiếm tự động chém trúng meteor.
   autoSwordBurstColor: 0xffc928,
 
+  // Tốc độ meteor rơi theo phương Y.
+  meteorFallSpeed: 2.1,
+
+  // Tốc độ meteor rơi theo phương Z.
+  meteorOutSpeed: 5,
+
+  randomSpeed: THREE.MathUtils.randFloat(1, 1.5),
+
+  // Độ cao bắt đầu spawn.
+  meteorSpawnMinY: 27,
+  meteorSpawnMaxY: 28,
+
+  // Giới hạn dưới; vượt qua mức này sẽ gây sát thương.
+  meteorBottomY: -0.55,
+
   meteorSpawnEvery: 1.05,
-  meteorMinSpeed: 9.5,
-  meteorMaxSpeed: 15,
   startingShield: 3,
   hitsPerLevelPoint: 5,
   pointsPerLevel: 3,
@@ -479,7 +494,7 @@ function setupPlayer(characterAsset) {
 function prepareModel(
   root,
   {
-    castShadow = true,
+    castShadow = false,
     receiveShadow = false
   } = {}
 ) {
@@ -1420,24 +1435,54 @@ function spawnMeteor() {
   meteor.add(visual);
 
   meteor.position.set(
-    THREE.MathUtils.randFloat(-9, 9),
-    THREE.MathUtils.randFloat(0.15, 5.3),
+    /*
+    * Vị trí trái/phải.
+    */
+    THREE.MathUtils.randFloat(
+      isCompactScreen ? -2 : isMediumScreen ? -3 : -9,
+      isCompactScreen ? 2 : isMediumScreen ? 3 : 9
+    ),
+
+    /*
+    * Spawn ở vùng cao.
+    */
+    THREE.MathUtils.randFloat(
+      CONFIG.meteorSpawnMinY,
+      CONFIG.meteorSpawnMaxY
+    ),
+
+    /*
+    * Tất cả meteor bắt đầu từ xa
+    * tại mặt phẳng Z = -62.
+    */
     -62
   );
 
   meteor.userData.visual = visual;
 
-  meteor.userData.speed =
-    THREE.MathUtils.randFloat(
-      CONFIG.meteorMinSpeed,
-      CONFIG.meteorMaxSpeed
-    ) +
+  /*
+  * Tốc độ rơi xuống theo chiều Y âm.
+  */
+  meteor.userData.fallSpeed =
+    CONFIG.meteorFallSpeed * CONFIG.randomSpeed +
     Math.min(
-      state.score / 900,
-      4.5
+      state.score / 2500,
+      2.5
     );
 
-  meteor.userData.radius = 0.72 * size;
+  /*
+  * Tốc độ bay ra theo chiều Z dương,
+  * từ -62 về phía camera và người chơi.
+  */
+  meteor.userData.forwardSpeed =
+    CONFIG.meteorOutSpeed * CONFIG.randomSpeed +
+    Math.min(
+      state.score / 900,
+      2.5
+    );
+
+  meteor.userData.radius =
+    0.72 * size;
 
   meteors.push(meteor);
 
@@ -1446,22 +1491,61 @@ function spawnMeteor() {
 
 function updateMeteors(delta) {
   for (
-    let index = meteors.length - 1;
+    let index =
+      meteors.length - 1;
     index >= 0;
     index -= 1
   ) {
-    const meteor = meteors[index];
+    const meteor =
+      meteors[index];
 
+    /*
+     * Bảo vệ trường hợp mảng meteor
+     * bị thay đổi khi game kết thúc.
+     */
+    if (!meteor) {
+      continue;
+    }
+
+    /*
+     * Giảm Y để meteor bay xuống dưới.
+     */
+    meteor.position.y -=
+      meteor.userData.fallSpeed *
+      delta;
+
+    /*
+     * Tăng Z để meteor bay từ -62
+     * ra phía camera và người chơi.
+     */
     meteor.position.z +=
-      meteor.userData.speed * delta;
+      meteor.userData.forwardSpeed *
+      delta;
 
-    if (meteor.position.z > 7.5) {
+    /*
+     * Meteor gây sát thương khi:
+     *
+     * - Bay tới gần người chơi theo Z.
+     * - Hoặc rơi quá thấp theo Y.
+     */
+    if (
+      meteor.position.z > 7.5 ||
+      meteor.position.y <
+        CONFIG.meteorBottomY
+    ) {
       const impactPosition =
         meteor.position.clone();
 
       removeMeteor(index);
-      damagePlayer(impactPosition);
 
+      damagePlayer(
+        impactPosition
+      );
+
+      /*
+       * damagePlayer() có thể gọi
+       * endGame() và xóa toàn bộ meteor.
+       */
       if (!state.running) {
         return;
       }
@@ -3515,7 +3599,7 @@ function updateResponsivePlayerLayout() {
   player.position.set(
     0,
     isCompactScreen
-      ? 1.45
+      ? 1.2
       : 1,
     2.5
   );
