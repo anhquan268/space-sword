@@ -448,8 +448,8 @@ a {
 }
 
 #game-title {
-  margin: 20px 0 32px;
-  font-size: clamp(1.8rem, 5vw, 3.8rem);
+  margin: 0px 0 32px;
+  font-size: clamp(1rem, 5vw, 2rem);
   font-weight: 850;
   letter-spacing: -0.05em;
   line-height: 1.1;
