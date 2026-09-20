@@ -652,10 +652,6 @@ body.is-hit .game-shell::after {
     height: 6px;
   }
 
-  .start-screen {
-    padding: 82px 14px 92px;
-  }
-
   .start-card {
     padding: 27px 20px;
     border-radius: 22px;

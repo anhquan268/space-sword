@@ -463,6 +463,12 @@ function setupPlayer(characterAsset) {
   aimRig.add(aimSwordPivot);
   player.add(aimRig);
 
+  /*
+  * Áp dụng scale và vị trí responsive
+  * ngay sau khi tạo model.
+  */
+  updateResponsivePlayerLayout();
+
   updateLevelSwords(state.level);
   updateAimRigFromScreen(
     aimScreen.x,
@@ -3465,6 +3471,12 @@ window.addEventListener(
       innerHeight
     );
 
+    /*
+    * Cập nhật lại scale khi màn hình
+    * vượt qua mốc 900px.
+    */
+    updateResponsivePlayerLayout();
+
     updateAim(
       aimScreen.x,
       aimScreen.y,
@@ -3476,6 +3488,38 @@ window.addEventListener(
     );
   }
 );
+
+function updateResponsivePlayerLayout() {
+  const isCompactScreen =
+    innerWidth <= 900;
+
+  /*
+   * Thu nhỏ toàn bộ:
+   * - Nhân vật
+   * - Kiếm cầm
+   * - BackSwordFan
+   */
+  const playerScale =
+    isCompactScreen
+      ? 0.78
+      : 1;
+
+  player.scale.setScalar(
+    playerScale
+  );
+
+  /*
+   * Màn hình nhỏ:
+   * tăng Y để đưa cả khối lên trên.
+   */
+  player.position.set(
+    0,
+    isCompactScreen
+      ? 1.45
+      : 1,
+    2.5
+  );
+}
 
 function updateBackground(
   delta,
@@ -3504,16 +3548,6 @@ function updateBackground(
   horizon.rotation.z =
     Math.sin(elapsed * 0.12) *
     0.025;
-
-  /*
-   * Vị trí của cả nhân vật,
-   * kiếm cầm và kiếm sau lưng
-   * so với sân khấu.
-   *
-   * Tăng Y để đưa nhân vật lên cao.
-   */
-  player.position.y = 1;
-  player.position.z = 2.5;
 }
 
 function updateCamera(delta) {
