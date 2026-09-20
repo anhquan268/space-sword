@@ -449,9 +449,9 @@ a {
 
 #game-title {
   margin: 20px 0 32px;
-  font-size: clamp(2.6rem, 7vw, 5.4rem);
+  font-size: clamp(1.8rem, 5vw, 3.8rem);
   font-weight: 850;
-  letter-spacing: -0.065em;
+  letter-spacing: -0.05em;
   line-height: 1.1;
   text-transform: uppercase;
 }
