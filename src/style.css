@@ -419,7 +419,7 @@ a {
 
 .start-card {
   width: min(480px, 100%);
-  padding: clamp(28px, 5vw, 54px);
+  padding: 27px 20px;
   border: 1px solid rgba(173, 209, 255, 0.18);
   border-radius: 28px;
   background: linear-gradient(145deg, rgba(11, 18, 43, 0.86), rgba(5, 9, 26, 0.64));
