@@ -406,7 +406,7 @@ a {
   display: grid;
   place-items: start center;
   box-sizing: border-box;
-  padding: 70px 20px 20px;
+  padding: 30px 20px 20px;
   background: radial-gradient(circle at 50% 42%, rgba(15, 27, 66, 0.22), rgba(3, 6, 18, 0.56));
   transition: opacity 360ms ease, visibility 360ms ease;
 }
@@ -418,7 +418,7 @@ a {
 }
 
 .start-card {
-  width: min(680px, 100%);
+  width: min(480px, 100%);
   padding: clamp(28px, 5vw, 54px);
   border: 1px solid rgba(173, 209, 255, 0.18);
   border-radius: 28px;
@@ -671,7 +671,6 @@ body.is-hit .game-shell::after {
 
   .instructions {
     grid-template-columns: 1fr 1fr;
-    display: grid !important;
   }
 }
 
