@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const canvas = document.querySelector('#game');
 const scoreText = document.querySelector('#score');
-const comboText = document.querySelector('#combo');
+const pauseButton = document.querySelector('#pause-button');
 const shield = document.querySelector('#shield');
 const levelText = document.querySelector('#level');
 const levelProgress = document.querySelector('#level-progress');
@@ -52,7 +52,7 @@ const CONFIG = Object.freeze({
   autoSwordOrbitFollowStrength: 9,
 
   // Thời gian chờ giữa hai đợt tấn công.
-  autoSwordWaveCooldown: 1,
+  autoSwordWaveCooldown: 1.5,
 
   // Tốc độ nhóm kiếm trở về quỹ đạo.
   autoSwordReturnSpeed: 34,
@@ -4123,9 +4123,6 @@ function updateHud() {
       state.score
     );
 
-  comboText.textContent =
-    state.combo;
-
   shield.setAttribute(
     'aria-label',
 
@@ -4267,6 +4264,20 @@ function writeBestScore(
 startButton.addEventListener(
   'click',
   startOrResumeGame
+);
+
+pauseButton.addEventListener(
+  'click',
+  (event) => {
+    /*
+     * Ngăn thao tác chạm truyền xuống
+     * canvas và kích hoạt bắn kiếm.
+     */
+    event.preventDefault();
+    event.stopPropagation();
+
+    pauseGame();
+  }
 );
 
 function updateAim(

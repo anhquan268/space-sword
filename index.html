@@ -42,13 +42,21 @@
     </header>
 
     <section class="hud" aria-label="Thông tin trận đấu">
+      <button
+        class="hud-card hud-card--pause"
+        id="pause-button"
+        type="button"
+        aria-label="Tạm dừng trò chơi"
+      >
+        <span class="hud-card__label">Pause</span>
+        <span class="pause-icon" aria-hidden="true">
+          <i></i>
+          <i></i>
+        </span>
+      </button>
       <div class="hud-card hud-card--score">
         <span class="hud-card__label">Điểm</span>
         <strong id="score">0000</strong>
-      </div>
-      <div class="hud-card">
-        <span class="hud-card__label">Chuỗi</span>
-        <strong><span id="combo">1</span><small>×</small></strong>
       </div>
       <div class="hud-card hud-card--shield">
         <span class="hud-card__label">Lá chắn</span>
