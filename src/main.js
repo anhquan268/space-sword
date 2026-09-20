@@ -1439,8 +1439,8 @@ function spawnMeteor() {
     * Vị trí trái/phải.
     */
     THREE.MathUtils.randFloat(
-      isCompactScreen ? -2 : isMediumScreen ? -3 : -9,
-      isCompactScreen ? 2 : isMediumScreen ? 3 : 9
+      isCompactScreen ? 2 : isMediumScreen ? 3 : 8,
+      isCompactScreen ? 2 : isMediumScreen ? 3 : 8
     ),
 
     /*
