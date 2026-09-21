@@ -236,6 +236,15 @@ const aimScreen =
     innerHeight / 2
   );
 
+/*
+ * Lưu riêng vị trí tâm ngắm ngay trước Pause.
+ */
+const aimScreenBeforePause =
+  new THREE.Vector2();
+
+let hasAimScreenBeforePause =
+  false;
+
 const projectiles = [];
 const meteors = [];
 const bursts = [];
@@ -3979,9 +3988,9 @@ function startOrResumeGame() {
       'playing';
 
     /*
-     * Reset khi bấm Tiếp tục.
-     */
-    resetCompactAimToDefault();
+    * Compact: khôi phục vị trí ngay trước Pause.
+    */
+    restoreCompactAimBeforePause();
 
     startScreen.classList.add(
       'is-hidden'
@@ -4021,8 +4030,16 @@ function startOrResumeGame() {
     'playing';
 
   /*
-   * Reset khi bấm Bắt đầu hoặc Chơi lại.
-   */
+  * Đây là trận mới nên không sử dụng
+  * vị trí đã lưu từ lần Pause trước.
+  */
+  hasAimScreenBeforePause =
+    false;
+
+  /*
+  * Bắt đầu hoặc Chơi lại vẫn dùng
+  * vị trí mặc định.
+  */
   resetCompactAimToDefault();
 
   updateHud();
@@ -4046,6 +4063,19 @@ function startOrResumeGame() {
 function pauseGame() {
   if (!state.running) {
     return;
+  }
+
+  /*
+   * Chỉ lưu vị trí trước Pause
+   * trên màn hình compact.
+   */
+  if (isCompactScreen) {
+    aimScreenBeforePause.copy(
+      aimScreen
+    );
+
+    hasAimScreenBeforePause =
+      true;
   }
 
   state.running = false;
@@ -4584,6 +4614,32 @@ function resetCompactAimToDefault() {
   updateAim(
     innerWidth / 2,
     innerHeight / 2 * 0.38,
+    pointerType
+  );
+}
+
+function restoreCompactAimBeforePause() {
+  /*
+   * Desktop không thay đổi.
+   * Nếu chưa có vị trí lưu thì không làm gì.
+   */
+  if (
+    !isCompactScreen ||
+    !hasAimScreenBeforePause
+  ) {
+    return;
+  }
+
+  const pointerType =
+    reticle.classList.contains(
+      'is-touch'
+    )
+      ? 'touch'
+      : 'mouse';
+
+  updateAim(
+    aimScreenBeforePause.x,
+    aimScreenBeforePause.y,
     pointerType
   );
 }
