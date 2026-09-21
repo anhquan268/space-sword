@@ -4615,7 +4615,7 @@ function resetCompactAimToDefault() {
    */
   updateAim(
     innerWidth / 2,
-    innerHeight * 0.38,
+    innerHeight / 2 * 0.38,
     pointerType
   );
 }
