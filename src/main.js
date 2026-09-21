@@ -3975,6 +3975,11 @@ function startOrResumeGame() {
     state.overlayMode =
       'playing';
 
+    /*
+     * Reset khi bấm Tiếp tục.
+     */
+    resetCompactAimToDefault();
+
     startScreen.classList.add(
       'is-hidden'
     );
@@ -4011,6 +4016,11 @@ function startOrResumeGame() {
 
   state.overlayMode =
     'playing';
+
+  /*
+   * Reset khi bấm Bắt đầu hoặc Chơi lại.
+   */
+  resetCompactAimToDefault();
 
   updateHud();
 
@@ -4547,6 +4557,32 @@ function updateAim(
       aimScreen.x,
       aimScreen.y
     );
+}
+
+function resetCompactAimToDefault() {
+  /*
+   * Desktop giữ nguyên vị trí tâm ngắm.
+   */
+  if (!isCompactScreen) {
+    return;
+  }
+
+  const pointerType =
+    reticle.classList.contains(
+      'is-touch'
+    )
+      ? 'touch'
+      : 'mouse';
+
+  /*
+   * Đưa tâm ngắm về giữa màn hình,
+   * giống vị trí khi trang vừa tải.
+   */
+  updateAim(
+    innerWidth / 2,
+    innerHeight / 2,
+    pointerType
+  );
 }
 
 function updateRelativeTouchAim(
