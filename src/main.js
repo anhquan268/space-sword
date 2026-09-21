@@ -2108,7 +2108,7 @@ function spawnMeteor() {
 
   const spawnX =
     THREE.MathUtils.randFloat(
-      6,
+      -6,
       6
     );
 
