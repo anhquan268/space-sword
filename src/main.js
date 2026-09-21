@@ -33,6 +33,7 @@ const CONFIG = Object.freeze({
   projectileRange: 105,
   projectileHomingStrength: 8.5,
   projectileHomingDelay: 0.11,
+  projectileTrailDelay: 0.05,
   projectileFanSpacingDeg: 5.2,
   secondaryTargetRadius: 24,
   backSwordFanSpacingDeg: 15,
@@ -1767,6 +1768,9 @@ function createProjectile(
   const trail =
     createProjectileTrail();
 
+  // Ban đầu chưa hiển thị trail.
+  trail.visible = false;
+
   projectile.add(visual);
   projectile.add(trail);
 
@@ -1803,6 +1807,7 @@ function createProjectile(
 
   projectile.userData.age = 0;
   projectile.userData.target = target;
+  projectile.userData.trail = trail;
 
   projectiles.push(projectile);
   scene.add(projectile);
@@ -1870,6 +1875,14 @@ function updateProjectiles(delta) {
       data.target;
 
     data.age += delta;
+
+    if (
+      data.trail &&
+      !data.trail.visible &&
+      data.age >= CONFIG.projectileTrailDelay
+    ) {
+      data.trail.visible = true;
+    }
 
     const hasActiveTarget =
       target &&
