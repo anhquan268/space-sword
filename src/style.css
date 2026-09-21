@@ -363,7 +363,7 @@ a {
 .reticle {
   position: absolute;
   z-index: 9;
-  top: 50%;
+  top: 38%;
   left: 50%;
   width: 34px;
   height: 34px;
