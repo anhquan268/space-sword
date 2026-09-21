@@ -5170,7 +5170,7 @@ function animate(timestamp) {
         0.54,
 
         CONFIG.meteorSpawnEvery -
-          state.playTime * 0.006
+          state.playTime * 0.01
       );
 
     if (
