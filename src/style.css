@@ -757,5 +757,4 @@ body.is-hit .game-shell::after {
 #game {
   touch-action: none;
   -webkit-user-drag: none;
-  user-drag: none;
 }
