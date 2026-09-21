@@ -110,7 +110,7 @@ const CONFIG = Object.freeze({
   relativeTouchAimMaxEdge: 1366,
 
   // Độ nhạy khi vuốt: 1px ngón tay = 1px tâm ngắm.
-  relativeTouchAimSensitivity: 2,
+  relativeTouchAimSensitivity: 1.7,
 
   // Khoảng cách tối thiểu giữa tâm ngắm và mép màn hình.
   aimScreenMargin: 28
