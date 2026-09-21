@@ -198,8 +198,11 @@ const renderer =
   });
 
 renderer.setPixelRatio(
-  Math.min(devicePixelRatio, 2)
-);
+  Math.min(
+    devicePixelRatio,
+      isCompactScreen ? 1.25 : 2
+    )
+  );
 
 renderer.setSize(
   innerWidth,
@@ -4942,7 +4945,7 @@ window.addEventListener(
     renderer.setPixelRatio(
       Math.min(
         devicePixelRatio,
-        2
+        isCompactScreen ? 1.25 : 2
       )
     );
 
