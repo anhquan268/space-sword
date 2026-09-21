@@ -4615,7 +4615,7 @@ function resetCompactAimToDefault() {
    */
   updateAim(
     innerWidth / 2,
-    innerHeight / 2 * 0.38,
+    innerHeight * 0.38,
     pointerType
   );
 }
@@ -5167,7 +5167,7 @@ function animate(timestamp) {
     */
     const spawnInterval =
       Math.max(
-        0.54,
+        0.80,
 
         CONFIG.meteorSpawnEvery -
           state.playTime * 0.01
