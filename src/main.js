@@ -99,7 +99,24 @@ const CONFIG = Object.freeze({
   // Meteor vượt qua Y này sẽ gây sát thương.
   meteorBottomY: -0.55,
 
+  // Khoảng cách spawn ban đầu.
   meteorSpawnEvery: 1.05,
+
+  // Khoảng cách spawn nhỏ nhất.
+  meteorMinSpawnInterval: 0.28,
+
+  // Mỗi giây giảm 0.009 giây chờ spawn.
+  meteorSpawnAcceleration: 0.009,
+
+  // Mỗi giây tăng 0.018 lần tốc độ meteor.
+  meteorSpeedAcceleration: 0.018,
+
+  // Giới hạn tốc độ theo thời gian.
+  meteorMaxTimeSpeedMultiplier: 3.2,
+
+  // Giới hạn tổng sau khi cộng độ khó theo điểm.
+  meteorMaxSpeedMultiplier: 3.6,
+
   startingShield: 3,
   hitsPerLevelPoint: 5,
   pointsPerLevel: 3,
@@ -2121,11 +2138,43 @@ function spawnMeteor() {
       .horizontalSpeed = 0;
   }
 
-  const meteorSpeedMultiplier =
+  /*
+  * Tốc độ tăng theo thời gian chơi.
+  *
+  * 0 giây: 1×
+  * 30 giây: 1.54×
+  * 60 giây: 2.08×
+  * 90 giây: 2.62×
+  * Tối đa theo thời gian: 3.2×
+  */
+  const timeSpeedMultiplier =
+    Math.min(
+      1 +
+        state.playTime *
+          CONFIG.meteorSpeedAcceleration,
+
+      CONFIG.meteorMaxTimeSpeedMultiplier
+    );
+
+  /*
+  * Điểm số bổ sung thêm tối đa 35% độ khó.
+  */
+  const scoreSpeedMultiplier =
     1 +
     Math.min(
-      state.score / 10000,
-      0.6
+      state.score / 20000,
+      0.35
+    );
+
+  /*
+  * Chặn tổng tốc độ ở 3.6×.
+  */
+  const meteorSpeedMultiplier =
+    Math.min(
+      timeSpeedMultiplier *
+        scoreSpeedMultiplier,
+
+      CONFIG.meteorMaxSpeedMultiplier
     );
 
   meteor.userData.fallSpeed =
@@ -5162,15 +5211,16 @@ function animate(timestamp) {
       delta;
 
     /*
-    * Cứ mỗi giây chơi, khoảng cách spawn
-    * giảm 0.006 giây.
+    * Meteor xuất hiện ngày càng thường xuyên.
+    * Luôn giữ giới hạn tối thiểu để tránh interval về 0.
     */
     const spawnInterval =
       Math.max(
-        0.80,
+        CONFIG.meteorMinSpawnInterval,
 
         CONFIG.meteorSpawnEvery -
-          state.playTime * 0.01
+          state.playTime *
+            CONFIG.meteorSpawnAcceleration
       );
 
     if (
