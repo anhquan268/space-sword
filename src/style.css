@@ -741,3 +741,21 @@ body.is-hit .game-shell::after {
     animation-iteration-count: 1 !important;
   }
 }
+
+/*
+ * Tắt menu nhấn giữ, chọn văn bản và kéo hình
+ * trong toàn bộ khu vực game trên iOS Safari.
+ */
+.game-shell,
+.game-shell * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#game {
+  touch-action: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+}

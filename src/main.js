@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const canvas = document.querySelector('#game');
+const gameShell = document.querySelector('.game-shell');
 const hud = document.querySelector('.hud');
 const scoreText = document.querySelector('#score');
 const pauseButton = document.querySelector('#pause-button');
@@ -4058,7 +4059,10 @@ function pauseGame() {
     'is-hidden'
   );
 
-  reticle.classList.add(
+  /*
+  * Ẩn tâm ngắm khi Pause.
+  */
+  reticle.classList.remove(
     'is-visible'
   );
 
@@ -4395,6 +4399,35 @@ function stopAllAimPointerInput() {
   aimPointerCaptureElement = null;
 }
 
+/*
+ * Chặn popup nhấn giữ mặc định của Safari.
+ *
+ * Không chặn pointerdown hoặc click nên nút Pause,
+ * nút Bắt đầu và điều khiển cảm ứng vẫn hoạt động.
+ */
+function preventNativeGameMenu(
+  event
+) {
+  event.preventDefault();
+}
+
+for (
+  const eventName of [
+    'contextmenu',
+    'selectstart',
+    'dragstart'
+  ]
+) {
+  gameShell.addEventListener(
+    eventName,
+    preventNativeGameMenu,
+    {
+      capture: true,
+      passive: false
+    }
+  );
+}
+
 function usesRelativeTouchAim(
   pointerType
 ) {
@@ -4496,12 +4529,12 @@ function updateAim(
     pointerType === 'pen'
   );
 
+  /*
+  * Chỉ hiển thị tâm ngắm khi game đang chạy.
+  */
   reticle.classList.toggle(
     'is-visible',
-
-    state.running ||
-    state.overlayMode === 'intro' ||
-    state.overlayMode === 'pause'
+    state.running
   );
 
   updateAimRigFromScreen(
