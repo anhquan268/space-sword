@@ -143,6 +143,7 @@ const state = {
   levelHitProgress: 0,
   bestScore: readBestScore(),
   spawnTimer: 0,
+  playTime: 0,
   lastShotAt: 0,
   lastHitAt: 0,
   shake: 0
@@ -4022,6 +4023,7 @@ function startOrResumeGame() {
   state.levelPoints = 0;
   state.levelHitProgress = 0;
   state.spawnTimer = 0.55;
+  state.playTime = 0;
   state.lastShotAt = 0;
   state.lastHitAt = 0;
   state.running = true;
@@ -5156,12 +5158,19 @@ function animate(timestamp) {
     state.spawnTimer +=
       delta;
 
+    state.playTime +=
+      delta;
+
+    /*
+    * Cứ mỗi giây chơi, khoảng cách spawn
+    * giảm 0.006 giây.
+    */
     const spawnInterval =
       Math.max(
         0.54,
 
         CONFIG.meteorSpawnEvery -
-          state.score / 6500
+          state.playTime * 0.006
       );
 
     if (
