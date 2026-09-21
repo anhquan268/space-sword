@@ -2108,7 +2108,7 @@ function spawnMeteor() {
 
   const spawnX =
     THREE.MathUtils.randFloat(
-      -6,
+      6,
       6
     );
 
@@ -2189,6 +2189,13 @@ function spawnMeteor() {
 
       CONFIG.meteorMaxSpeedMultiplier
     );
+
+  /*
+  * Tốc độ trở về biên X tăng theo cùng
+  * hệ số thời gian và điểm của Y, Z.
+  */
+  meteor.userData.horizontalSpeed *=
+    meteorSpeedMultiplier;
 
   meteor.userData.fallSpeed =
     CONFIG.meteorFallSpeed *
