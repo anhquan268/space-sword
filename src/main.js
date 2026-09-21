@@ -98,7 +98,16 @@ const CONFIG = Object.freeze({
   hitsPerLevelPoint: 5,
   pointsPerLevel: 3,
   maxLevel: 10,
-  aimPlaneZ: -48
+  aimPlaneZ: -48,
+
+  // Kích thước màn hình tối đa dùng điều khiển vuốt tương đối.
+  relativeTouchAimMaxEdge: 1366,
+
+  // Độ nhạy khi vuốt: 1px ngón tay = 1px tâm ngắm.
+  relativeTouchAimSensitivity: 1,
+
+  // Khoảng cách tối thiểu giữa tâm ngắm và mép màn hình.
+  aimScreenMargin: 28
 });
 
 const PROJECTILE_FORWARD_AXIS =
@@ -240,6 +249,14 @@ let damageFlashTimer = 0;
 let aimedMeteor = null;
 let continuousFirePointerId = null;
 let continuousFireActive = false;
+
+/*
+ * Trạng thái điều khiển tâm ngắm kiểu trackpad
+ * cho màn hình iPad trở xuống.
+ */
+let relativeTouchAimActive = false;
+let relativeTouchLastX = 0;
+let relativeTouchLastY = 0;
 
 /*
  * True khi chuột hoặc cảm ứng
@@ -4013,6 +4030,9 @@ function pauseGame() {
   state.overlayMode =
     'pause';
 
+  relativeTouchAimActive =
+    false;
+
   continuousFireActive =
     false;
 
@@ -4047,6 +4067,9 @@ function endGame() {
 
   state.overlayMode =
     'gameover';
+
+  relativeTouchAimActive =
+    false;
 
   clearDynamicObjects();
 
@@ -4314,8 +4337,8 @@ function stopContinuousFireForPointer(
   pointerId
 ) {
   /*
-   * Chỉ dừng đúng pointer đang
-   * giữ chế độ bắn liên hoàn.
+   * Chỉ dừng pointer hiện đang giữ quyền
+   * điều khiển và bắn liên hoàn.
    */
   if (
     pointerId !==
@@ -4330,10 +4353,9 @@ function stopContinuousFireForPointer(
   continuousFirePointerId =
     null;
 
-  /*
-   * Giải phóng pointer capture nếu
-   * ngón tay được kéo từ canvas vào HUD.
-   */
+  relativeTouchAimActive =
+    false;
+
   if (
     canvas.hasPointerCapture?.(
       pointerId
@@ -4345,16 +4367,33 @@ function stopContinuousFireForPointer(
   }
 }
 
+function usesRelativeTouchAim(
+  pointerType
+) {
+  const isTouchInput =
+    pointerType === 'touch' ||
+    pointerType === 'pen';
+
+  const longestViewportEdge =
+    Math.max(
+      innerWidth,
+      innerHeight
+    );
+
+  return (
+    isTouchInput &&
+    longestViewportEdge <=
+      CONFIG.relativeTouchAimMaxEdge
+  );
+}
+
 hud.addEventListener(
   'pointerdown',
+
   (event) => {
     pointerIsOverHud =
       true;
 
-    /*
-     * Ẩn tâm ngắm ngay khi người chơi
-     * chạm vào HUD.
-     */
     reticle.classList.remove(
       'is-visible'
     );
@@ -4364,9 +4403,7 @@ hud.addEventListener(
     );
 
     /*
-     * Nút Pause vẫn phải nhận click.
-     * Các ô HUD còn lại không thực hiện
-     * hành vi mặc định nào.
+     * Nút Pause vẫn được phép nhận click.
      */
     if (
       !event.target.closest(
@@ -4376,6 +4413,7 @@ hud.addEventListener(
       event.preventDefault();
     }
   },
+
   {
     passive: false
   }
@@ -4386,17 +4424,34 @@ function updateAim(
   clientY,
   pointerType = 'mouse'
 ) {
+  /*
+   * Giữ toàn bộ tâm ngắm trong màn hình.
+   */
+  const horizontalMargin =
+    Math.min(
+      CONFIG.aimScreenMargin,
+      innerWidth * 0.5
+    );
+
+  const verticalMargin =
+    Math.min(
+      CONFIG.aimScreenMargin,
+      innerHeight * 0.5
+    );
+
   aimScreen.set(
     THREE.MathUtils.clamp(
       clientX,
-      0,
-      innerWidth
+      horizontalMargin,
+      innerWidth -
+        horizontalMargin
     ),
 
     THREE.MathUtils.clamp(
       clientY,
-      0,
-      innerHeight
+      verticalMargin,
+      innerHeight -
+        verticalMargin
     )
   );
 
@@ -4409,10 +4464,8 @@ function updateAim(
   reticle.classList.toggle(
     'is-touch',
 
-    pointerType ===
-      'touch' ||
-    pointerType ===
-      'pen'
+    pointerType === 'touch' ||
+    pointerType === 'pen'
   );
 
   reticle.classList.toggle(
@@ -4432,8 +4485,47 @@ function updateAim(
     );
 }
 
+function updateRelativeTouchAim(
+  event
+) {
+  /*
+   * Khoảng dịch chuyển của ngón tay kể từ
+   * sự kiện pointermove trước đó.
+   */
+  const deltaX =
+    event.clientX -
+    relativeTouchLastX;
+
+  const deltaY =
+    event.clientY -
+    relativeTouchLastY;
+
+  relativeTouchLastX =
+    event.clientX;
+
+  relativeTouchLastY =
+    event.clientY;
+
+  /*
+   * Dịch chuyển từ vị trí hiện tại của tâm ngắm,
+   * không đưa tâm ngắm thẳng tới vị trí ngón tay.
+   */
+  updateAim(
+    aimScreen.x +
+      deltaX *
+        CONFIG.relativeTouchAimSensitivity,
+
+    aimScreen.y +
+      deltaY *
+        CONFIG.relativeTouchAimSensitivity,
+
+    event.pointerType
+  );
+}
+
 window.addEventListener(
   'pointermove',
+
   (event) => {
     pointerIsOverHud =
       isPointInsideHud(
@@ -4442,8 +4534,8 @@ window.addEventListener(
       );
 
     /*
-     * Khi đi vào HUD:
-     * - Không cập nhật hướng ngắm.
+     * Khi ngón tay hoặc con trỏ đi vào HUD:
+     * - Không đổi hướng ngắm.
      * - Ẩn tâm ngắm.
      * - Dừng bắn liên hoàn.
      */
@@ -4460,8 +4552,39 @@ window.addEventListener(
     }
 
     /*
-     * Khi rời HUD, việc ngắm hoạt động
-     * trở lại như bình thường.
+     * iPad/mobile:
+     * độ lệch của ngón tay điều khiển tâm ngắm.
+     */
+    if (
+      relativeTouchAimActive &&
+      event.pointerId ===
+        continuousFirePointerId &&
+      usesRelativeTouchAim(
+        event.pointerType
+      )
+    ) {
+      updateRelativeTouchAim(
+        event
+      );
+
+      return;
+    }
+
+    /*
+     * Không cho sự kiện cảm ứng không hoạt động
+     * đưa tâm ngắm tới tọa độ tuyệt đối.
+     */
+    if (
+      usesRelativeTouchAim(
+        event.pointerType
+      )
+    ) {
+      return;
+    }
+
+    /*
+     * Chuột trên desktop vẫn ngắm trực tiếp
+     * theo vị trí con trỏ.
      */
     updateAim(
       event.clientX,
@@ -4469,6 +4592,7 @@ window.addEventListener(
       event.pointerType
     );
   },
+
   {
     passive: true
   }
@@ -4486,19 +4610,62 @@ canvas.addEventListener(
       return;
     }
 
-    pointerIsOverHud = false;
-
-    updateAim(
-      event.clientX,
-      event.clientY,
-      event.pointerType
-    );
-
     const isContinuousInput =
       event.pointerType ===
         'touch' ||
       event.pointerType ===
         'pen';
+
+    /*
+     * Không cho ngón tay thứ hai giành quyền
+     * điều khiển từ ngón tay đang hoạt động.
+     */
+    if (
+      isContinuousInput &&
+      continuousFirePointerId !==
+        null &&
+      continuousFirePointerId !==
+        event.pointerId
+    ) {
+      return;
+    }
+
+    pointerIsOverHud =
+      false;
+
+    if (
+      usesRelativeTouchAim(
+        event.pointerType
+      )
+    ) {
+      /*
+       * Điểm chạm đầu chỉ bắt đầu phiên điều khiển.
+       * Tâm ngắm giữ nguyên vị trí hiện tại.
+       */
+      relativeTouchAimActive =
+        true;
+
+      relativeTouchLastX =
+        event.clientX;
+
+      relativeTouchLastY =
+        event.clientY;
+
+      updateAim(
+        aimScreen.x,
+        aimScreen.y,
+        event.pointerType
+      );
+    } else {
+      relativeTouchAimActive =
+        false;
+
+      updateAim(
+        event.clientX,
+        event.clientY,
+        event.pointerType
+      );
+    }
 
     if (isContinuousInput) {
       continuousFirePointerId =
@@ -4514,6 +4681,9 @@ canvas.addEventListener(
       event.preventDefault();
     }
 
+    /*
+     * Bắn ngay phát đầu tiên khi bắt đầu chạm.
+     */
     shootAtAim();
   },
 
