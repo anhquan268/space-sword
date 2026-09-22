@@ -20,16 +20,22 @@ const statusText = document.querySelector('#status-text');
 const reticle = document.querySelector('#reticle');
 const hitLabel = document.querySelector('#hit-label');
 const bestScoreText = document.querySelector('#best-score');
+
 const isCompactScreen = innerWidth <= 900;
-/*
- * Cho phép vuốt trên màn hình Intro/Pause
- * mà không bị trình duyệt cuộn trang.
- */
+
 startScreen.style.touchAction = 'none';
 
 const CONFIG = Object.freeze({
-  projectileSpeed: 52,
-  projectileCooldownMs: 145,
+  // Đạn kiếm Level 1: chậm và bắn thưa hơn.
+  projectileLevelOneSpeed: 38,
+  projectileLevelOneCooldownMs: 240,
+
+  // Đạn kiếm Level 2: nhanh, bắn dày và có sét xanh.
+  projectileLevelTwoSpeed: 66,
+  projectileLevelTwoCooldownMs: 105,
+  projectileLevelTwoColor: 0x218cff,
+  projectileLevelTwoBurstColor: 0x2d8fff,
+
   projectileRange: 105,
   projectileHomingStrength: 8.5,
   projectileHomingDelay: 0.11,
@@ -40,6 +46,9 @@ const CONFIG = Object.freeze({
 
   // Số kiếm bắn thủ công tối đa.
   maxManualSwords: 5,
+
+  // Số kiếm tự động tối đa từ Level 11.
+  maxAutonomousSwords: 8,
 
   // Tốc độ kiếm tự động.
   autoSwordSpeed: 34,
@@ -62,6 +71,10 @@ const CONFIG = Object.freeze({
   // Thời gian chờ giữa hai đợt tấn công.
   autoSwordWaveCooldown: 1.5,
 
+  // Sau khi kiếm lửa quay về,
+  // nhóm kiếm tự động chờ 1.5 giây.
+  autoSwordAfterFireDelay: 1.5,
+
   // Tốc độ nhóm kiếm trở về quỹ đạo.
   autoSwordReturnSpeed: 34,
 
@@ -82,6 +95,113 @@ const CONFIG = Object.freeze({
 
   // Màu burst khi kiếm tự động chém trúng.
   autoSwordBurstColor: 0xffc928,
+
+  // Kiếm lửa xuất hiện từ Level 11.
+  fireSwordCooldown: 2,
+  fireSwordSpeed: 40,
+  fireSwordReturnSpeed: 40,
+  fireSwordHitRadius: 0.42,
+
+  // Kích thước khi đứng cạnh nhân vật.
+  fireSwordIdleScale: 0.5,
+
+  // Kích thước sau khi bắt đầu tấn công.
+  fireSwordAttackScale: 3,
+
+  // Sau 0,05 giây mới bắt đầu phóng lớn.
+  fireSwordEnlargeDelay: 0.05,
+
+  // Tốc độ chuyển đổi kích thước.
+  fireSwordScaleFollowStrength: 22,
+
+  // Vị trí kiếm lửa khi đứng cạnh nhân vật.
+  fireSwordIdleY: 0.1,
+  fireSwordIdleZ: 0.3,
+
+  // Màu sắc và phát sáng.
+  fireSwordColor: 0xff7a16,
+  fireSwordEmissive: 0xff3200,
+  fireSwordEmissiveIntensity: 10,
+  fireSwordBurstColor: 0xff6a12,
+
+  // Bán kính cháy lan
+  fireSwordBurnRadius: 20,
+
+  // Thời gian cháy cơ bản
+  fireSwordBurnDuration: 1.05,
+
+  // Giới hạn tổng số meteor đang cháy.
+  // Mobile dùng giới hạn thấp hơn.
+  fireSwordMaxBurnTargets:
+    isCompactScreen
+      ? 6
+      : 12,
+
+  // Làm các meteor nổ lệch thời điểm,
+  // tránh tất cả phát nổ cùng một frame.
+  fireSwordBurnStagger: 0.06,
+
+  // Mỗi lượt kiếm lửa tạo thêm
+  // một vòng kiếm Ultimate.
+  ultimateRingChargeStep: 1,
+
+  // Thời gian chờ sau khi đủ 5 vòng
+  // trước khi bắt đầu Ultimate.
+  ultimateChargeDelay: 0.65,
+
+  // Vạn Kiếm Quy Tông
+  ultimateSwordCount: isCompactScreen ? 150 : 300,
+  ultimateSwordRingCount: 5,
+  ultimateSwordSpeed: 48,
+  ultimateSwordHitRadius: 0.34,
+
+  // Mỗi lượt phóng một nhóm 3 kiếm.
+  ultimateSwordBatchSize: 3,
+
+  // Khoảng thời gian giữa hai nhóm.
+  ultimateSwordBatchInterval: 0.1,
+
+  // Tổng quãng đường mỗi kiếm bay.
+  ultimateSwordTravelDistance: 105,
+
+  // Khoảng cách ngang từ kiếm giữa
+  // tới hai kiếm bên cánh.
+  ultimateSwordFormationHalfWidth: 0.3,
+
+  // Kiếm giữa dẫn trước hai kiếm còn lại.
+  ultimateSwordCenterLeadDistance: 0.62,
+
+  // Thời gian chuyển từ vị trí vòng
+  // sang đội hình tam giác.
+  ultimateSwordFormationBlendDuration: 0.28,
+
+  ultimateSwordBurstColor: 0x71efff,
+
+  /*
+  * Vị trí tâm vòng kiếm so với nhân vật.
+  */
+  ultimateSwordCenterOffsetX: 0,
+  ultimateSwordCenterOffsetY: isCompactScreen ? 0.8 : 1,
+  ultimateSwordCenterOffsetZ: isCompactScreen ? 1.5 : 2.5,
+
+  /*
+  * Bán kính vòng trong cùng và khoảng
+  * cách bán kính giữa các vòng.
+  */
+  ultimateSwordInnerRadius: isCompactScreen ? 0.8 : 1,
+  ultimateSwordRingSpacing: isCompactScreen ? 0.2 : 0.25,
+
+  /*
+  * Tỷ lệ chiều cao của vòng.
+  * 1 tạo vòng tròn.
+  * 0.58 tạo vòng dẹt theo Y.
+  */
+  ultimateSwordVerticalRatio: 0.8,
+
+  /*
+  * Khoảng cách Z giữa các vòng.
+  */
+  ultimateSwordDepthSpacing: 0.05,
 
   // Tốc độ meteor đi xuống theo Y.
   meteorFallSpeed: 2.1,
@@ -110,7 +230,7 @@ const CONFIG = Object.freeze({
   meteorSpawnAcceleration: 0.009,
 
   // Mỗi giây tăng 0.018 lần tốc độ meteor.
-  meteorSpeedAcceleration: 0.018,
+  meteorSpeedAcceleration: 0.006,
 
   // Giới hạn tốc độ theo thời gian.
   meteorMaxTimeSpeedMultiplier: 3.2,
@@ -119,9 +239,10 @@ const CONFIG = Object.freeze({
   meteorMaxSpeedMultiplier: 3.6,
 
   startingShield: 3,
-  hitsPerLevelPoint: 5,
+  hitsPerLevelPoint: 1,
   pointsPerLevel: 3,
-  maxLevel: 10,
+  maxLevel: 20,
+
   aimPlaneZ: -48,
 
   // Kích thước màn hình tối đa dùng điều khiển vuốt tương đối.
@@ -212,16 +333,15 @@ const renderer =
     canvas,
     antialias: true,
     alpha: false,
-    powerPreference:
-      'high-performance'
+    powerPreference: 'high-performance'
   });
 
 renderer.setPixelRatio(
   Math.min(
     devicePixelRatio,
-      isCompactScreen ? 1.25 : 2
-    )
-  );
+    isCompactScreen ? 1.25 : 2
+  )
+);
 
 renderer.setSize(
   innerWidth,
@@ -255,9 +375,6 @@ const aimScreen =
     innerHeight / 2
   );
 
-/*
- * Lưu riêng vị trí tâm ngắm ngay trước Pause.
- */
 const aimScreenBeforePause =
   new THREE.Vector2();
 
@@ -267,16 +384,23 @@ let hasAimScreenBeforePause =
 const projectiles = [];
 const meteors = [];
 const bursts = [];
+const fireExplosions = [];
 
-// Kiếm tự động xuất hiện từ Level 6.
+// Kiếm tự động xuất hiện từ Level 11.
 const autonomousSwords = [];
 
 let stars;
 let swordAsset = null;
 let swordVisualTemplate = null;
 let projectileSwordTemplate = null;
+let projectileLevelTwoSwordTemplate = null;
 let meteorVisualTemplate = null;
 let projectileTrailTemplate = null;
+let projectileLightningTrailTemplate = null;
+let sharedFireParticleTexture = null;
+let sharedFireCoreMaterial = null;
+let sharedFireOuterMaterial = null;
+let sharedFireExplosionGeometry = null;
 let aimRig = null;
 let aimSwordPivot = null;
 let aimMuzzle = null;
@@ -287,34 +411,28 @@ let aimedMeteor = null;
 let continuousFirePointerId = null;
 let continuousFireActive = false;
 let aimPointerCaptureElement = null;
-
-/*
- * Trạng thái điều khiển tâm ngắm kiểu trackpad
- * cho màn hình iPad trở xuống.
- */
 let relativeTouchAimActive = false;
 let relativeTouchLastX = 0;
 let relativeTouchLastY = 0;
-
-/*
- * True khi chuột hoặc cảm ứng
- * đang nằm trong vùng HUD.
- */
 let pointerIsOverHud = false;
 let autoSwordOrbitAngle = 0;
+let fireSword = null;
+let fireSwordPhase = 'idle';
+let fireSwordTarget = null;
+let fireSwordAttackAge = 0;
 
-/*
- * Trạng thái của cả nhóm kiếm:
- *
- * cooldown:
- * quay quanh nhân vật và đếm 5 giây.
- *
- * attacking:
- * toàn bộ kiếm trong đợt đang tấn công.
- *
- * returning:
- * các kiếm đã chém xong cùng trở về.
- */
+let fireSwordCooldownRemaining =
+  CONFIG.fireSwordCooldown;
+let ultimateRingChargeCount = 0;
+let specialSwordCyclePhase = 'inactive';
+let ultimateChargeTimer = 0;
+let ultimateSwordField = null;
+let ultimateSwordLaunchTimer = 0;
+let ultimateSwordLaunchIndex = 0;
+let ultimateSwordSpentCount = 0;
+
+const ultimateSwordStates = [];
+
 let autoSwordGroupPhase =
   'cooldown';
 
@@ -366,10 +484,42 @@ const autoSwordDirection =
 const autoSwordOrbitPosition =
   new THREE.Vector3();
 
+const fireSwordIdleWorldPosition =
+  new THREE.Vector3();
+
+const fireSwordDirection =
+  new THREE.Vector3();
+
+const ultimateSwordDirection =
+  new THREE.Vector3();
+
 /*
- * Model kiếm được quy ước hướng
- * theo trục local -Z.
+ * Tọa độ cố định mà toàn bộ kiếm
+ * của năm vòng Ultimate hướng tới
+ * trước khi được phóng.
  */
+const ULTIMATE_SWORD_PREVIEW_TARGET =
+  new THREE.Vector3(
+    0,
+    27,
+    -62
+  );
+
+const ultimateSwordStreamCenter =
+  new THREE.Vector3();
+
+const ultimateSwordFormationOffset =
+  new THREE.Vector3();
+
+const ultimateSwordPreviousPosition =
+  new THREE.Vector3();
+
+const ultimateSwordMovement =
+  new THREE.Vector3();
+
+const ultimateSwordDummy =
+  new THREE.Object3D();
+
 const AUTO_SWORD_IDLE_QUATERNION =
   new THREE.Quaternion()
     .setFromUnitVectors(
@@ -551,29 +701,22 @@ for (
         8.84,
         96
       ),
-
       new THREE.MeshBasicMaterial({
         color:
           z === -42
             ? 0x806dff
             : 0x45dff5,
-
         transparent: true,
-
         opacity:
           z === -42
             ? 0.11
             : 0.07,
-
-        side:
-          THREE.DoubleSide,
-
+        side: THREE.DoubleSide,
         depthWrite: false
       })
     );
 
   ring.position.z = z;
-
   horizon.add(ring);
 }
 
@@ -620,20 +763,19 @@ async function loadAssets() {
 
   const characterAsset =
     characterResult.status ===
-    'fulfilled'
+      'fulfilled'
       ? characterResult.value.scene
       : null;
 
   swordAsset =
     swordResult.status ===
-    'fulfilled'
+      'fulfilled'
       ? swordResult.value.scene
       : null;
 
   setupPlayer(characterAsset);
 
   state.assetsReady = true;
-
   startButton.disabled = false;
 
   startLabel.textContent =
@@ -675,9 +817,7 @@ function setupPlayer(
       characterAsset.clone(true);
 
     character.scale.setScalar(80);
-
-    character.rotation.y =
-      Math.PI;
+    character.rotation.y = Math.PI;
 
     aimRig.add(character);
   } else {
@@ -736,7 +876,6 @@ function setupPlayer(
   );
 
   player.add(aimRig);
-
   player.updateMatrixWorld(true);
 
   aimMuzzle =
@@ -828,9 +967,7 @@ function createFallbackCharacter() {
       armorMaterial
     );
 
-  torso.position.y =
-    0.96;
-
+  torso.position.y = 0.96;
   group.add(torso);
 
   const chest =
@@ -861,9 +998,7 @@ function createFallbackCharacter() {
       darkMaterial
     );
 
-  head.position.y =
-    1.68;
-
+  head.position.y = 1.68;
   group.add(head);
 
   const visor =
@@ -947,7 +1082,9 @@ function createSwordVisual(
     .clone(true);
 }
 
-function createProjectileSwordVisual() {
+function createProjectileSwordVisual(
+  tier = 1
+) {
   if (!projectileSwordTemplate) {
     const visual =
       createSwordVisual(
@@ -981,8 +1118,77 @@ function createProjectileSwordVisual() {
       visual;
   }
 
-  return projectileSwordTemplate
-    .clone(true);
+  if (
+    tier === 2 &&
+    !projectileLevelTwoSwordTemplate
+  ) {
+    projectileLevelTwoSwordTemplate =
+      projectileSwordTemplate
+        .clone(true);
+
+    projectileLevelTwoSwordTemplate
+      .traverse((node) => {
+        if (
+          !node.isMesh ||
+          !node.material
+        ) {
+          return;
+        }
+
+        const sourceMaterials =
+          Array.isArray(node.material)
+            ? node.material
+            : [node.material];
+
+        const blueMaterials =
+          sourceMaterials.map(
+            (sourceMaterial) => {
+              const material =
+                sourceMaterial.clone();
+
+              if (material.color) {
+                material.color.lerp(
+                  new THREE.Color(
+                    CONFIG
+                      .projectileLevelTwoColor
+                  ),
+                  1
+                );
+              }
+
+              if (material.emissive) {
+                material.emissive.setHex(
+                  CONFIG
+                    .projectileLevelTwoColor
+                );
+
+                material.emissiveIntensity =
+                  Math.max(
+                    material
+                      .emissiveIntensity ??
+                    0,
+                    4.8
+                  );
+              }
+
+              material.needsUpdate = true;
+
+              return material;
+            }
+          );
+
+        node.material =
+          Array.isArray(node.material)
+            ? blueMaterials
+            : blueMaterials[0];
+      });
+  }
+
+  return (
+    tier === 2
+      ? projectileLevelTwoSwordTemplate
+      : projectileSwordTemplate
+  ).clone(true);
 }
 
 function createProceduralSword() {
@@ -1016,8 +1222,7 @@ function createProceduralSword() {
       opacity: 0.12,
       side: THREE.DoubleSide,
       depthWrite: false,
-      blending:
-        THREE.AdditiveBlending,
+      blending: THREE.AdditiveBlending,
       toneMapped: false
     });
 
@@ -1193,7 +1398,6 @@ function createProceduralSword() {
       );
 
     gripRing.position.z = z;
-
     sword.add(gripRing);
   }
 
@@ -1244,7 +1448,6 @@ function createProceduralMeteor() {
         16,
         12
       ),
-
       new THREE.MeshStandardMaterial({
         color: 0xff173d,
         emissive: 0xa50025,
@@ -1263,15 +1466,13 @@ function createProceduralMeteor() {
         12,
         8
       ),
-
       new THREE.MeshBasicMaterial({
         color: 0xff315c,
         transparent: true,
         opacity: 0.16,
         side: THREE.BackSide,
         depthWrite: false,
-        blending:
-          THREE.AdditiveBlending,
+        blending: THREE.AdditiveBlending,
         toneMapped: false
       })
     );
@@ -1346,7 +1547,6 @@ function createStarfield(count) {
 
   geometry.setAttribute(
     'position',
-
     new THREE.BufferAttribute(
       positions,
       3
@@ -1355,7 +1555,6 @@ function createStarfield(count) {
 
   geometry.setAttribute(
     'color',
-
     new THREE.BufferAttribute(
       colors,
       3
@@ -1364,7 +1563,6 @@ function createStarfield(count) {
 
   return new THREE.Points(
     geometry,
-
     new THREE.PointsMaterial({
       size: 0.09,
       vertexColors: true,
@@ -1382,12 +1580,12 @@ function setRaycasterFromScreen(
 ) {
   pointer.x =
     (clientX / innerWidth) *
-      2 -
+    2 -
     1;
 
   pointer.y =
     -(clientY / innerHeight) *
-      2 +
+    2 +
     1;
 
   raycaster.setFromCamera(
@@ -1582,10 +1780,6 @@ function shootFromScreen(
 }
 
 function shootAtAim() {
-  /*
-   * Tâm ngắm được phép di chuyển ở Intro/Pause,
-   * nhưng chỉ được tạo đạn khi game đang chạy.
-   */
   if (
     !state.running ||
     pointerIsOverHud
@@ -1627,12 +1821,11 @@ function getNearbySecondaryTargets(
           .distanceToSquared(
             primaryTargetPosition
           ) <=
-          maximumDistanceSquared
+        maximumDistanceSquared
       );
     })
     .sort(
-      (
-        meteorA,
+      (meteorA,
         meteorB
       ) => {
         return (
@@ -1653,6 +1846,44 @@ function getNearbySecondaryTargets(
     );
 }
 
+function getProjectileTier(level) {
+  return level >= 6 ? 2 : 1;
+}
+
+function getManualProjectileCount(
+  level
+) {
+  if (level <= 5) {
+    return THREE.MathUtils.clamp(
+      level,
+      1,
+      CONFIG.maxManualSwords
+    );
+  }
+
+  return THREE.MathUtils.clamp(
+    level - 5,
+    1,
+    CONFIG.maxManualSwords
+  );
+}
+
+function getProjectileSpeed(tier) {
+  return tier === 2
+    ? CONFIG.projectileLevelTwoSpeed
+    : CONFIG.projectileLevelOneSpeed;
+}
+
+function getProjectileCooldownMs(
+  tier
+) {
+  return tier === 2
+    ? CONFIG
+      .projectileLevelTwoCooldownMs
+    : CONFIG
+      .projectileLevelOneCooldownMs;
+}
+
 function fireProjectileFan(
   origin,
   direction,
@@ -1668,9 +1899,14 @@ function fireProjectileFan(
   const now =
     performance.now();
 
+  const projectileTier =
+    getProjectileTier(state.level);
+
   if (
     now - state.lastShotAt <
-    CONFIG.projectileCooldownMs
+    getProjectileCooldownMs(
+      projectileTier
+    )
   ) {
     return;
   }
@@ -1678,10 +1914,8 @@ function fireProjectileFan(
   state.lastShotAt = now;
 
   const swordCount =
-    THREE.MathUtils.clamp(
-      state.level,
-      1,
-      CONFIG.maxManualSwords
+    getManualProjectileCount(
+      state.level
     );
 
   const fanCenter =
@@ -1725,16 +1959,17 @@ function fireProjectileFan(
 
     const projectileTarget =
       swordIndex ===
-      primarySwordIndex
+        primarySwordIndex
         ? target
         : secondaryTargets[
-            secondaryTargetIndex++
-          ] ?? null;
+        secondaryTargetIndex++
+        ] ?? null;
 
     createProjectile(
       origin,
       fanDirection,
-      projectileTarget
+      projectileTarget,
+      projectileTier
     );
   }
 
@@ -1752,7 +1987,8 @@ function fireProjectileFan(
 function createProjectile(
   origin,
   direction,
-  target = null
+  target = null,
+  tier = 1
 ) {
   const normalizedDirection =
     direction
@@ -1763,10 +1999,13 @@ function createProjectile(
     new THREE.Group();
 
   const visual =
-    createProjectileSwordVisual();
+    createProjectileSwordVisual(tier);
 
   const trail =
-    createProjectileTrail();
+    createProjectileTrail(tier);
+
+  const speed =
+    getProjectileSpeed(tier);
 
   // Ban đầu chưa hiển thị trail.
   trail.visible = false;
@@ -1786,7 +2025,7 @@ function createProjectile(
 
   projectile.userData
     .lockedQuaternion =
-      projectile.quaternion.clone();
+    projectile.quaternion.clone();
 
   projectile.userData.direction =
     normalizedDirection;
@@ -1795,12 +2034,12 @@ function createProjectile(
     normalizedDirection
       .clone()
       .multiplyScalar(
-        CONFIG.projectileSpeed
+        speed
       );
 
   projectile.userData
     .previousPosition =
-      origin.clone();
+    origin.clone();
 
   projectile.userData
     .distanceTravelled = 0;
@@ -1808,13 +2047,132 @@ function createProjectile(
   projectile.userData.age = 0;
   projectile.userData.target = target;
   projectile.userData.trail = trail;
+  projectile.userData.tier = tier;
+  projectile.userData.speed = speed;
+
+  projectile.userData.burstColor =
+    tier === 2
+      ? CONFIG
+        .projectileLevelTwoBurstColor
+      : 0x71efff;
 
   projectiles.push(projectile);
   scene.add(projectile);
 }
 
-function createProjectileTrail() {
-  if (!projectileTrailTemplate) {
+function createProjectileTrail(
+  tier = 1
+) {
+  if (
+    tier === 2 &&
+    !projectileLightningTrailTemplate
+  ) {
+    projectileLightningTrailTemplate =
+      new THREE.Group();
+
+    const glow =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.025,
+          0.2,
+          3.5,
+          8,
+          1,
+          true
+        ),
+        new THREE.MeshBasicMaterial({
+          color:
+            CONFIG
+              .projectileLevelTwoColor,
+          transparent: true,
+          opacity: 0.48,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          blending:
+            THREE.AdditiveBlending,
+          toneMapped: false
+        })
+      );
+
+    glow.rotation.x =
+      Math.PI / 2;
+
+    glow.position.z = 1.7;
+
+    projectileLightningTrailTemplate
+      .add(glow);
+
+    for (
+      let boltIndex = 0;
+      boltIndex < 3;
+      boltIndex += 1
+    ) {
+      const points = [];
+      const segmentCount = 9;
+
+      for (
+        let segmentIndex = 0;
+        segmentIndex <= segmentCount;
+        segmentIndex += 1
+      ) {
+        const progress =
+          segmentIndex /
+          segmentCount;
+
+        points.push(
+          new THREE.Vector3(
+            segmentIndex === 0
+              ? 0
+              : THREE.MathUtils
+                .randFloatSpread(
+                  0.34
+                ),
+            segmentIndex === 0
+              ? 0
+              : THREE.MathUtils
+                .randFloatSpread(
+                  0.34
+                ),
+            progress * 3.7
+          )
+        );
+      }
+
+      const lightning =
+        new THREE.Line(
+          new THREE.BufferGeometry()
+            .setFromPoints(points),
+          new THREE.LineBasicMaterial({
+            color:
+              boltIndex === 0
+                ? 0xd8f5ff
+                : CONFIG
+                  .projectileLevelTwoColor,
+            transparent: true,
+            opacity:
+              boltIndex === 0
+                ? 0.95
+                : 0.68,
+            depthWrite: false,
+            blending:
+              THREE.AdditiveBlending,
+            toneMapped: false
+          })
+        );
+
+      lightning.rotation.z =
+        boltIndex *
+        (Math.PI * 2 / 3);
+
+      projectileLightningTrailTemplate
+        .add(lightning);
+    }
+  }
+
+  if (
+    tier === 1 &&
+    !projectileTrailTemplate
+  ) {
     projectileTrailTemplate =
       new THREE.Group();
 
@@ -1828,7 +2186,6 @@ function createProjectileTrail() {
           1,
           true
         ),
-
         new THREE.MeshBasicMaterial({
           color: 0x62eaff,
           transparent: true,
@@ -1852,8 +2209,11 @@ function createProjectileTrail() {
     );
   }
 
-  return projectileTrailTemplate
-    .clone(true);
+  return (
+    tier === 2
+      ? projectileLightningTrailTemplate
+      : projectileTrailTemplate
+  ).clone(true);
 }
 
 function updateProjectiles(delta) {
@@ -1865,7 +2225,7 @@ function updateProjectiles(delta) {
   ) {
     const projectile =
       projectiles[
-        projectileIndex
+      projectileIndex
       ];
 
     const data =
@@ -1884,6 +2244,24 @@ function updateProjectiles(delta) {
       data.trail.visible = true;
     }
 
+    if (
+      data.tier === 2 &&
+      data.trail.visible
+    ) {
+      data.trail.rotation.z +=
+        delta * 11;
+
+      const lightningPulse =
+        1 +
+        Math.sin(
+          data.age * 90
+        ) * 0.09;
+
+      data.trail.scale.setScalar(
+        lightningPulse
+      );
+    }
+
     const hasActiveTarget =
       target &&
       target.parent &&
@@ -1892,7 +2270,7 @@ function updateProjectiles(delta) {
     if (
       hasActiveTarget &&
       data.age >=
-        CONFIG.projectileHomingDelay
+      CONFIG.projectileHomingDelay
     ) {
       target.getWorldPosition(
         tempTarget
@@ -1910,7 +2288,7 @@ function updateProjectiles(delta) {
         Math.exp(
           -CONFIG
             .projectileHomingStrength *
-            delta
+          delta
         );
 
       data.direction
@@ -1923,7 +2301,7 @@ function updateProjectiles(delta) {
       data.velocity
         .copy(data.direction)
         .multiplyScalar(
-          CONFIG.projectileSpeed
+          data.speed
         );
 
       data.lockedQuaternion
@@ -1952,7 +2330,7 @@ function updateProjectiles(delta) {
     );
 
     data.distanceTravelled +=
-      CONFIG.projectileSpeed *
+      data.speed *
       delta;
 
     let collided = false;
@@ -1999,10 +2377,11 @@ function updateProjectiles(delta) {
       if (
         distanceSquared <=
         collisionRadius *
-          collisionRadius
+        collisionRadius
       ) {
         registerHit(
-          meteor.position
+          meteor.position,
+          data.burstColor
         );
 
         removeMeteor(
@@ -2014,7 +2393,6 @@ function updateProjectiles(delta) {
         );
 
         collided = true;
-
         break;
       }
     }
@@ -2022,7 +2400,7 @@ function updateProjectiles(delta) {
     if (
       !collided &&
       data.distanceTravelled >=
-        CONFIG.projectileRange
+      CONFIG.projectileRange
     ) {
       removeProjectile(
         projectileIndex
@@ -2086,6 +2464,287 @@ function getMeteorXBoundary() {
   return 6;
 }
 
+function createFireExplosion(position) {
+  createBurst(
+    position,
+    0xff4b0b
+  );
+
+  createBurst(
+    position,
+    0xffc928
+  );
+
+  if (!sharedFireExplosionGeometry) {
+    sharedFireExplosionGeometry =
+      new THREE.RingGeometry(
+        0.24,
+        0.56,
+        32
+      );
+  }
+
+  const explosion =
+    new THREE.Group();
+
+  const ringMaterial =
+    new THREE.MeshBasicMaterial({
+      color: 0xff6a12,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending:
+        THREE.AdditiveBlending,
+      toneMapped: false
+    });
+
+  const ring =
+    new THREE.Mesh(
+      sharedFireExplosionGeometry,
+      ringMaterial
+    );
+
+  const light =
+    new THREE.PointLight(
+      0xff6817,
+      18,
+      12,
+      2
+    );
+
+  explosion.position.copy(position);
+  explosion.add(ring, light);
+
+  explosion.userData.life = 0.48;
+  explosion.userData.maxLife = 0.48;
+  explosion.userData.ring = ring;
+  explosion.userData.light = light;
+
+  fireExplosions.push(explosion);
+  scene.add(explosion);
+}
+
+function updateFireExplosions(delta) {
+  for (
+    let explosionIndex =
+      fireExplosions.length - 1;
+    explosionIndex >= 0;
+    explosionIndex -= 1
+  ) {
+    const explosion =
+      fireExplosions[
+        explosionIndex
+      ];
+
+    explosion.userData.life -=
+      delta;
+
+    const progress =
+      1 -
+      Math.max(
+        0,
+        explosion.userData.life
+      ) /
+      explosion.userData.maxLife;
+
+    const scale =
+      0.7 + progress * 6.2;
+
+    explosion.userData.ring
+      .scale.setScalar(scale);
+
+    explosion.userData.ring
+      .material.opacity =
+      Math.max(
+        0,
+        (1 - progress) * 0.9
+      );
+
+    explosion.userData
+      .light.intensity =
+      Math.max(
+        0,
+        (1 - progress) * 18
+      );
+
+    if (
+      explosion.userData.life <= 0
+    ) {
+      fireExplosions.splice(
+        explosionIndex,
+        1
+      );
+
+      scene.remove(explosion);
+
+      explosion.userData.ring
+        .material.dispose();
+    }
+  }
+}
+
+function igniteNearbyMeteors(
+  impactPosition,
+  primaryMeteor
+) {
+  const burnRadiusSquared =
+    CONFIG.fireSwordBurnRadius ** 2;
+
+  /*
+   * Đếm những meteor đang cháy để giới
+   * hạn tổng số hiệu ứng đang hoạt động.
+   */
+  const activeBurnCount =
+    meteors.reduce(
+      (
+        currentCount,
+        meteor
+      ) => {
+        if (
+          meteor !== primaryMeteor &&
+          meteor.parent &&
+          meteor.userData.burnTime > 0
+        ) {
+          return currentCount + 1;
+        }
+
+        return currentCount;
+      },
+      0
+    );
+
+  const availableBurnSlots =
+    Math.max(
+      0,
+      CONFIG.fireSwordMaxBurnTargets -
+        activeBurnCount
+    );
+
+  if (availableBurnSlots === 0) {
+    return;
+  }
+
+  /*
+   * Chỉ chọn meteor chưa cháy,
+   * nằm trong bán kính và gần điểm
+   * va chạm nhất.
+   */
+  const burnTargets =
+    meteors
+      .filter((meteor) => {
+        return (
+          meteor !== primaryMeteor &&
+          meteor.parent &&
+          !(meteor.userData.burnTime > 0)
+        );
+      })
+      .map((meteor) => {
+        return {
+          meteor,
+
+          distanceSquared:
+            meteor.position
+              .distanceToSquared(
+                impactPosition
+              )
+        };
+      })
+      .filter((entry) => {
+        return (
+          entry.distanceSquared <=
+          burnRadiusSquared
+        );
+      })
+      .sort(
+        (
+          entryA,
+          entryB
+        ) => {
+          return (
+            entryA.distanceSquared -
+            entryB.distanceSquared
+          );
+        }
+      )
+      .slice(
+        0,
+        availableBurnSlots
+      );
+
+  burnTargets.forEach(
+    (
+      entry,
+      burnIndex
+    ) => {
+      const meteor =
+        entry.meteor;
+
+      /*
+       * Các meteor nổ lệch nhau 0.06
+       * giây để giảm tải một frame.
+       */
+      meteor.userData.burnTime =
+        CONFIG.fireSwordBurnDuration +
+        burnIndex *
+          CONFIG.fireSwordBurnStagger;
+
+      meteor.userData
+        .fireExplosionCreated =
+        false;
+
+      if (
+        !meteor.userData.fireEffect
+      ) {
+        const fireEffect =
+          createMeteorFireEffect();
+
+        meteor.userData.fireEffect =
+          fireEffect;
+
+        meteor.add(fireEffect);
+      }
+    }
+  );
+}
+
+function updateBurningMeteor(
+  meteor,
+  delta
+) {
+  if (
+    !meteor.userData.fireEffect ||
+    !(meteor.userData.burnTime > 0)
+  ) {
+    return false;
+  }
+
+  meteor.userData.burnTime -=
+    delta;
+
+  const burnProgress =
+    1 -
+    Math.max(
+      0,
+      meteor.userData.burnTime
+    ) /
+    CONFIG.fireSwordBurnDuration;
+
+  updateFireEffect(
+    meteor.userData.fireEffect,
+    delta,
+    0.9 + burnProgress * 0.45
+  );
+
+  meteor.userData.fireEffect
+    .rotation.y +=
+    delta * 3.2;
+
+  return (
+    meteor.userData.burnTime <= 0
+  );
+}
+
 function spawnMeteor() {
   const meteor =
     new THREE.Group();
@@ -2103,7 +2762,6 @@ function spawnMeteor() {
     );
 
   visual.scale.setScalar(size);
-
   meteor.add(visual);
 
   const spawnX =
@@ -2117,12 +2775,10 @@ function spawnMeteor() {
 
   meteor.position.set(
     spawnX,
-
     THREE.MathUtils.randFloat(
       CONFIG.meteorSpawnMinY,
       CONFIG.meteorSpawnMaxY
     ),
-
     -62
   );
 
@@ -2137,41 +2793,28 @@ function spawnMeteor() {
   ) {
     meteor.userData
       .horizontalSpeed =
-        CONFIG
-          .meteorXReturnSpeed;
+      CONFIG
+        .meteorXReturnSpeed;
   } else if (
     spawnX > xBoundary
   ) {
     meteor.userData
       .horizontalSpeed =
-        -CONFIG
-          .meteorXReturnSpeed;
+      -CONFIG
+        .meteorXReturnSpeed;
   } else {
     meteor.userData
       .horizontalSpeed = 0;
   }
 
-  /*
-  * Tốc độ tăng theo thời gian chơi.
-  *
-  * 0 giây: 1×
-  * 30 giây: 1.54×
-  * 60 giây: 2.08×
-  * 90 giây: 2.62×
-  * Tối đa theo thời gian: 3.2×
-  */
   const timeSpeedMultiplier =
     Math.min(
       1 +
-        state.playTime *
-          CONFIG.meteorSpeedAcceleration,
-
+      state.playTime *
+      CONFIG.meteorSpeedAcceleration,
       CONFIG.meteorMaxTimeSpeedMultiplier
     );
 
-  /*
-  * Điểm số bổ sung thêm tối đa 35% độ khó.
-  */
   const scoreSpeedMultiplier =
     1 +
     Math.min(
@@ -2179,21 +2822,13 @@ function spawnMeteor() {
       0.35
     );
 
-  /*
-  * Chặn tổng tốc độ ở 3.6×.
-  */
   const meteorSpeedMultiplier =
     Math.min(
       timeSpeedMultiplier *
-        scoreSpeedMultiplier,
-
+      scoreSpeedMultiplier,
       CONFIG.meteorMaxSpeedMultiplier
     );
 
-  /*
-  * Tốc độ trở về biên X tăng theo cùng
-  * hệ số thời gian và điểm của Y, Z.
-  */
   meteor.userData.horizontalSpeed *=
     meteorSpeedMultiplier;
 
@@ -2227,6 +2862,31 @@ function updateMeteors(delta) {
     }
 
     if (
+      updateBurningMeteor(
+        meteor,
+        delta
+      )
+    ) {
+      const burnPosition =
+        meteor.position.clone();
+
+      meteor.userData
+        .fireExplosionCreated = true;
+
+      registerHit(
+        burnPosition,
+        CONFIG.fireSwordBurstColor
+      );
+
+      createFireExplosion(
+        burnPosition
+      );
+
+      removeMeteor(index);
+      continue;
+    }
+
+    if (
       meteor.userData
         .horizontalSpeed !== 0
     ) {
@@ -2243,7 +2903,7 @@ function updateMeteors(delta) {
         meteor.userData
           .horizontalSpeed > 0 &&
         meteor.position.x >=
-          -xBoundary
+        -xBoundary
       ) {
         meteor.position.x =
           -xBoundary;
@@ -2254,7 +2914,7 @@ function updateMeteors(delta) {
         meteor.userData
           .horizontalSpeed < 0 &&
         meteor.position.x <=
-          xBoundary
+        xBoundary
       ) {
         meteor.position.x =
           xBoundary;
@@ -2275,7 +2935,7 @@ function updateMeteors(delta) {
     if (
       meteor.position.z > 7.5 ||
       meteor.position.y <
-        CONFIG.meteorBottomY
+      CONFIG.meteorBottomY
     ) {
       const impactPosition =
         meteor.position.clone();
@@ -2304,6 +2964,19 @@ function removeMeteor(index) {
     return;
   }
 
+  if (
+    meteor.userData.fireEffect &&
+    !meteor.userData
+      .fireExplosionCreated
+  ) {
+    createFireExplosion(
+      meteor.position
+    );
+
+    meteor.userData
+      .fireExplosionCreated = true;
+  }
+
   const autoSwordOwner =
     meteor.userData
       .autoSwordOwner;
@@ -2326,46 +2999,69 @@ function removeMeteor(index) {
   meteor.userData
     .autoSwordOwner = null;
 
+  if (
+    meteor.userData
+      .specialSwordOwner ===
+    fireSword
+  ) {
+    fireSwordTarget = null;
+  }
+
+  meteor.userData
+    .specialSwordOwner = null;
+
+  const ultimateSwordOwner =
+    meteor.userData
+      .ultimateSwordOwner;
+
+  if (
+    ultimateSwordOwner?.target ===
+    meteor
+  ) {
+    ultimateSwordOwner.target = null;
+  }
+
+  meteor.userData
+    .ultimateSwordOwner = null;
+
   if (aimedMeteor === meteor) {
     aimedMeteor = null;
   }
+
+  /*
+  * Geometry hạt lửa được tạo riêng cho
+  * từng meteor nên phải dispose trước
+  * khi xóa meteor khỏi scene.
+  */
+  disposeFireEffectGeometry(
+    meteor.userData.fireEffect
+  );
+
+  meteor.userData.fireEffect = null;
 
   scene.remove(meteor);
 }
 
 function getBackSwordCount(level) {
-  if (level < 2) {
+  if (level < 6) {
     return 0;
   }
 
-  if (
-    level <=
-    CONFIG.maxManualSwords
-  ) {
-    return level;
+  if (level <= 10) {
+    return level - 5;
   }
 
-  return Math.max(
-    0,
-
-    CONFIG.maxManualSwords -
-      (
-        level -
-        CONFIG.maxManualSwords
-      )
-  );
+  // Level 11–20 dùng một kiếm đỏ riêng.
+  return 0;
 }
 
 function getAutonomousSwordCount(
   level
 ) {
   return THREE.MathUtils.clamp(
-    level -
-      CONFIG.maxManualSwords,
-
+    level - 11,
     0,
-
-    CONFIG.maxManualSwords
+    CONFIG.maxAutonomousSwords
   );
 }
 
@@ -2430,11 +3126,9 @@ function updateBackSwordFan(level) {
 
     swordPivot.position.set(
       Math.sin(angle) * 1.35,
-
       1.28 +
-        Math.cos(angle) *
-          0.12,
-
+      Math.cos(angle) *
+      0.12,
       0
     );
 
@@ -2515,18 +3209,16 @@ function getAutonomousSwordOrbitPosition(
 
   target.set(
     playerWorldPosition.x +
-      Math.cos(angle) *
-        CONFIG
-          .autoSwordOrbitRadius,
-
+    Math.cos(angle) *
+    CONFIG
+      .autoSwordOrbitRadius,
     playerWorldPosition.y +
-      CONFIG
-        .autoSwordOrbitHeight,
-
+    CONFIG
+      .autoSwordOrbitHeight,
     playerWorldPosition.z +
-      Math.sin(angle) *
-        CONFIG
-          .autoSwordOrbitRadius
+    Math.sin(angle) *
+    CONFIG
+      .autoSwordOrbitRadius
   );
 
   return target;
@@ -2558,28 +3250,28 @@ function prepareAutonomousSwordMaterials(
 
           material.userData
             .autoSwordBaseAppearance = {
-              color:
-                material.color
-                  ? material.color
-                      .getHex()
-                  : null,
+            color:
+              material.color
+                ? material.color
+                  .getHex()
+                : null,
 
-              emissive:
-                material.emissive
-                  ? material.emissive
-                      .getHex()
-                  : null,
+            emissive:
+              material.emissive
+                ? material.emissive
+                  .getHex()
+                : null,
 
-              emissiveIntensity:
-                material
-                  .emissiveIntensity,
+            emissiveIntensity:
+              material
+                .emissiveIntensity,
 
-              metalness:
-                material.metalness,
+            metalness:
+              material.metalness,
 
-              roughness:
-                material.roughness
-            };
+            roughness:
+              material.roughness
+          };
 
           return material;
         }
@@ -2632,7 +3324,7 @@ function setAutonomousSwordGolden(
         material.color.setHex(
           enabled
             ? CONFIG
-                .autoSwordGoldColor
+              .autoSwordGoldColor
             : base.color
         );
       }
@@ -2645,7 +3337,7 @@ function setAutonomousSwordGolden(
           .setHex(
             enabled
               ? CONFIG
-                  .autoSwordGoldEmissive
+                .autoSwordGoldEmissive
               : base.emissive
           );
       }
@@ -2657,11 +3349,11 @@ function setAutonomousSwordGolden(
       ) {
         material
           .emissiveIntensity =
-            enabled
-              ? CONFIG
-                  .autoSwordGoldEmissiveIntensity
-              : base
-                  .emissiveIntensity;
+          enabled
+            ? CONFIG
+              .autoSwordGoldEmissiveIntensity
+            : base
+              .emissiveIntensity;
       }
 
       if (
@@ -2672,11 +3364,10 @@ function setAutonomousSwordGolden(
         material.metalness =
           enabled
             ? Math.max(
-                base.metalness ??
-                  0,
-
-                0.75
-              )
+              base.metalness ??
+              0,
+              0.75
+            )
             : base.metalness;
       }
 
@@ -2688,11 +3379,10 @@ function setAutonomousSwordGolden(
         material.roughness =
           enabled
             ? Math.min(
-                base.roughness ??
-                  1,
-
-                0.24
-              )
+              base.roughness ??
+              1,
+              0.24
+            )
             : base.roughness;
       }
 
@@ -2703,6 +3393,1680 @@ function setAutonomousSwordGolden(
 
   sword.userData.isGolden =
     enabled;
+}
+
+function ensureSharedFireAssets() {
+  if (!sharedFireParticleTexture) {
+    const textureCanvas =
+      document.createElement('canvas');
+
+    textureCanvas.width = 64;
+    textureCanvas.height = 64;
+
+    const context =
+      textureCanvas.getContext('2d');
+
+    if (!context) {
+      throw new Error(
+        'Không thể tạo Canvas 2D cho hiệu ứng lửa.'
+      );
+    }
+
+    const gradient =
+      context.createRadialGradient(
+        32,
+        36,
+        2,
+        32,
+        32,
+        30
+      );
+
+    gradient.addColorStop(
+      0,
+      'rgba(255,255,255,1)'
+    );
+
+    gradient.addColorStop(
+      0.18,
+      'rgba(255,244,162,1)'
+    );
+
+    gradient.addColorStop(
+      0.46,
+      'rgba(255,133,24,0.92)'
+    );
+
+    gradient.addColorStop(
+      0.76,
+      'rgba(255,45,4,0.48)'
+    );
+
+    gradient.addColorStop(
+      1,
+      'rgba(255,18,0,0)'
+    );
+
+    context.fillStyle = gradient;
+
+    context.fillRect(
+      0,
+      0,
+      textureCanvas.width,
+      textureCanvas.height
+    );
+
+    sharedFireParticleTexture =
+      new THREE.CanvasTexture(
+        textureCanvas
+      );
+
+    sharedFireParticleTexture.colorSpace =
+      THREE.SRGBColorSpace;
+
+    sharedFireParticleTexture.needsUpdate =
+      true;
+  }
+
+  if (!sharedFireCoreMaterial) {
+    sharedFireCoreMaterial =
+      new THREE.PointsMaterial({
+        color: 0xffd35a,
+        map: sharedFireParticleTexture,
+        size: 0.12,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 0.96,
+        alphaTest: 0.015,
+        depthWrite: false,
+        blending:
+          THREE.AdditiveBlending,
+        toneMapped: false
+      });
+
+    sharedFireCoreMaterial.userData
+      .sharedFireMaterial = true;
+  }
+
+  if (!sharedFireOuterMaterial) {
+    sharedFireOuterMaterial =
+      new THREE.PointsMaterial({
+        color: 0xff3d08,
+        map: sharedFireParticleTexture,
+        size: 0.24,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 0.72,
+        alphaTest: 0.01,
+        depthWrite: false,
+        blending:
+          THREE.AdditiveBlending,
+        toneMapped: false
+      });
+
+    sharedFireOuterMaterial.userData
+      .sharedFireMaterial = true;
+  }
+}
+
+function createFireParticleLayer(
+  particleCount,
+  material,
+  effectType,
+  layerScale,
+  layerLength = null
+) {
+  const positions =
+    new Float32Array(
+      particleCount * 3
+    );
+
+  const geometry =
+    new THREE.BufferGeometry();
+
+  geometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(
+      positions,
+      3
+    )
+  );
+
+  const points =
+    new THREE.Points(
+      geometry,
+      material
+    );
+
+  points.frustumCulled = false;
+
+  points.userData.isFireParticleLayer =
+    true;
+
+  points.userData.effectType =
+    effectType;
+
+  points.userData.layerScale =
+    layerScale;
+
+  /*
+  * Chiều dài riêng của lớp hạt.
+  * Giá trị này chủ yếu dùng cho fireSword.
+  */
+  points.userData.layerLength =
+    layerLength;
+
+  points.userData.particles =
+    Array.from(
+      {
+        length: particleCount
+      },
+      (
+        unusedValue,
+        particleIndex
+      ) => {
+        return {
+          progress:
+            (
+              particleIndex /
+                particleCount +
+              Math.random() * 0.18
+            ) % 1,
+
+          speed:
+            THREE.MathUtils.randFloat(
+              0.62,
+              1.18
+            ),
+
+          phase:
+            Math.random() *
+            Math.PI *
+            2,
+
+          radius:
+            THREE.MathUtils.randFloat(
+              0.65,
+              1.15
+            )
+        };
+      }
+    );
+
+  return points;
+}
+
+function createFireSwordFlameEffect() {
+  ensureSharedFireAssets();
+
+  const flameGroup =
+    new THREE.Group();
+
+  flameGroup.name =
+    'fire-sword-flames';
+
+  flameGroup.userData.time = 0;
+  flameGroup.userData.layers = [];
+
+  /*
+   * 46 hạt cam đỏ bên ngoài.
+   */
+  const outerLayer =
+    createFireParticleLayer(
+      46,
+      sharedFireOuterMaterial,
+      'sword',
+      1,
+      1.6
+    );
+
+  /*
+   * 28 hạt vàng ở lõi.
+   */
+  const coreLayer =
+    createFireParticleLayer(
+      28,
+      sharedFireCoreMaterial,
+      'sword',
+      0.56,
+      1.2
+    );
+
+  flameGroup.userData.layers.push(
+    outerLayer,
+    coreLayer
+  );
+
+  flameGroup.add(
+    outerLayer,
+    coreLayer
+  );
+
+  /*
+   * Ánh sáng cam đi cùng kiếm.
+   */
+  const fireLight =
+    new THREE.PointLight(
+      0xff5a12,
+      6.5,
+      8,
+      2
+    );
+
+  fireLight.position.set(
+    0,
+    0,
+    -0.9
+  );
+
+  flameGroup.userData.fireLight =
+    fireLight;
+
+  flameGroup.add(fireLight);
+
+  return flameGroup;
+}
+
+function createMeteorFireEffect() {
+  ensureSharedFireAssets();
+
+  const flameGroup =
+    new THREE.Group();
+
+  flameGroup.name =
+    'burning-meteor-flames';
+
+  flameGroup.position.y = 0.18;
+
+  flameGroup.userData.time = 0;
+  flameGroup.userData.layers = [];
+
+  /*
+  * Giảm số hạt trên mobile để tránh
+  * cập nhật quá nhiều vertex mỗi frame.
+  */
+  const outerParticleCount =
+    isCompactScreen
+      ? 10
+      : 34;
+
+  const coreParticleCount =
+    isCompactScreen
+      ? 6
+      : 20;
+
+  /*
+  * Lớp lửa ngoài của meteor.
+  */
+  const outerLayer =
+    createFireParticleLayer(
+      outerParticleCount,
+      sharedFireOuterMaterial,
+      'meteor',
+      1
+    );
+
+  /*
+  * Lõi vàng của meteor.
+  */
+  const coreLayer =
+    createFireParticleLayer(
+      coreParticleCount,
+      sharedFireCoreMaterial,
+      'meteor',
+      0.58
+    );
+
+  flameGroup.userData.layers.push(
+    outerLayer,
+    coreLayer
+  );
+
+  flameGroup.add(
+    outerLayer,
+    coreLayer
+  );
+
+  return flameGroup;
+}
+
+function updateFireEffect(
+  flameGroup,
+  delta,
+  intensity = 1
+) {
+  if (!flameGroup) {
+    return;
+  }
+
+  flameGroup.userData.time += delta;
+
+  const time =
+    flameGroup.userData.time;
+
+  for (
+    const layer
+    of flameGroup.userData.layers
+  ) {
+    const positionAttribute =
+      layer.geometry.getAttribute(
+        'position'
+      );
+
+    const particles =
+      layer.userData.particles;
+
+    const layerScale =
+      layer.userData.layerScale;
+
+    /*
+    * Nếu lớp không khai báo chiều dài,
+    * giữ giá trị cũ là 2.25.
+    */
+    const layerLength =
+      layer.userData.layerLength ??
+      2.25;
+
+    for (
+      let particleIndex = 0;
+      particleIndex <
+        particles.length;
+      particleIndex += 1
+    ) {
+      const particle =
+        particles[particleIndex];
+
+      const progress =
+        (
+          particle.progress +
+          time * particle.speed
+        ) % 1;
+
+      /*
+       * Hạt trên kiếm chạy dọc theo
+       * trục Z âm, tức hướng mũi kiếm.
+       */
+      if (
+        layer.userData.effectType ===
+        'sword'
+      ) {
+        const envelope =
+          Math.sin(
+            progress * Math.PI
+          );
+
+        const radius =
+          (
+            0.018 +
+            envelope * 0.13
+          ) *
+          layerScale *
+          intensity *
+          particle.radius;
+
+        positionAttribute.setXYZ(
+          particleIndex,
+
+          Math.sin(
+            time * 13 +
+            particle.phase
+          ) * radius,
+
+          Math.cos(
+            time * 11 +
+            particle.phase
+          ) *
+          radius *
+          0.7,
+
+          0.15 -
+            progress * layerLength
+        );
+      } else {
+        /*
+         * Hạt trên meteor bay lên trên
+         * và thu hẹp dần ở phần ngọn.
+         */
+        const radius =
+          (
+            0.48 *
+              (1 - progress) +
+            0.045
+          ) *
+          layerScale *
+          intensity *
+          particle.radius;
+
+        const angle =
+          particle.phase +
+          time * 2.2;
+
+        positionAttribute.setXYZ(
+          particleIndex,
+
+          Math.cos(angle) *
+            radius,
+
+          progress * 1.55,
+
+          Math.sin(angle) *
+            radius
+        );
+      }
+    }
+
+    positionAttribute.needsUpdate =
+      true;
+  }
+
+  /*
+   * Đèn lửa nhấp nháy.
+   */
+  if (flameGroup.userData.fireLight) {
+    flameGroup.userData
+      .fireLight.intensity =
+      (
+        5.6 +
+        Math.sin(time * 26) *
+          1.8
+      ) *
+      intensity;
+  }
+}
+
+/*
+ * Chỉ dispose geometry riêng của
+ * từng cụm hạt.
+ *
+ * Không dispose material và texture
+ * vì chúng đang được dùng chung.
+ */
+function disposeFireEffectGeometry(
+  flameGroup
+) {
+  if (!flameGroup) {
+    return;
+  }
+
+  flameGroup.traverse((node) => {
+    if (
+      node.isPoints &&
+      node.userData
+        .isFireParticleLayer
+    ) {
+      node.geometry.dispose();
+    }
+  });
+}
+
+function setFireSwordAppearance(sword) {
+  sword.traverse((node) => {
+    if (
+      !node.isMesh ||
+      !node.material
+    ) {
+      return;
+    }
+
+    const materials =
+      Array.isArray(node.material)
+        ? node.material
+        : [node.material];
+
+    for (
+      const material
+      of materials
+    ) {
+      if (material.color) {
+        material.color.setHex(
+          CONFIG.fireSwordColor
+        );
+      }
+
+      if (material.emissive) {
+        material.emissive.setHex(
+          CONFIG.fireSwordEmissive
+        );
+
+        material.emissiveIntensity =
+          CONFIG
+            .fireSwordEmissiveIntensity;
+      }
+
+      if (
+        typeof material.metalness ===
+        'number'
+      ) {
+        material.metalness =
+          Math.max(
+            material.metalness,
+            0.8
+          );
+      }
+
+      if (
+        typeof material.roughness ===
+        'number'
+      ) {
+        material.roughness =
+          Math.min(
+            material.roughness,
+            0.2
+          );
+      }
+
+      material.needsUpdate = true;
+    }
+  });
+}
+
+function setFireSwordIdleTransform() {
+  if (!fireSword || !aimRig) {
+    return;
+  }
+
+  if (fireSword.parent !== aimRig) {
+    aimRig.attach(fireSword);
+  }
+
+  fireSword.position.set(
+    0,
+    CONFIG.fireSwordIdleY,
+    CONFIG.fireSwordIdleZ
+  );
+
+  fireSword.scale.setScalar(
+    CONFIG.fireSwordIdleScale
+  );
+
+  fireSword.quaternion.copy(
+    AUTO_SWORD_IDLE_QUATERNION
+  );
+}
+
+function createFireSword() {
+  if (fireSword || !aimRig) {
+    return;
+  }
+
+  fireSword =
+    new THREE.Group();
+
+  fireSword.name =
+    'level-11-fire-sword';
+
+  const visual =
+    createProjectileSwordVisual();
+
+  prepareAutonomousSwordMaterials(
+    visual
+  );
+
+  setFireSwordAppearance(visual);
+
+  fireSword.scale.setScalar(
+    CONFIG.fireSwordIdleScale
+  );
+
+  fireSword.add(
+    visual,
+    createFireSwordFlameEffect()
+  );
+
+  aimRig.add(fireSword);
+
+  fireSwordPhase = 'idle';
+  fireSwordTarget = null;
+  fireSwordAttackAge = 0;
+
+  setFireSwordIdleTransform();
+}
+
+function releaseFireSwordTarget() {
+  if (
+    fireSwordTarget?.userData
+      .specialSwordOwner ===
+    fireSword
+  ) {
+    fireSwordTarget.userData
+      .specialSwordOwner = null;
+  }
+
+  fireSwordTarget = null;
+}
+
+function removeFireSword() {
+  releaseFireSwordTarget();
+
+  if (!fireSword) {
+    return;
+  }
+
+  /*
+  * Giải phóng geometry của các lớp
+  * hạt lửa trước khi xóa kiếm.
+  */
+  disposeFireEffectGeometry(
+    fireSword.getObjectByName(
+      'fire-sword-flames'
+    )
+  );
+
+  fireSword.removeFromParent();
+
+  const disposedMaterials =
+    new Set();
+
+  fireSword.traverse((node) => {
+    if (
+      !node.isMesh ||
+      !node.material
+    ) {
+      return;
+    }
+
+    const materials =
+      Array.isArray(node.material)
+        ? node.material
+        : [node.material];
+
+    for (
+      const material
+      of materials
+    ) {
+      if (
+        !material ||
+        disposedMaterials.has(material)
+      ) {
+        continue;
+      }
+
+      if (
+        !material.userData
+          .sharedFireMaterial
+      ) {
+        material.dispose();
+      }
+
+      disposedMaterials.add(material);
+    }
+  });
+
+  fireSword = null;
+  fireSwordPhase = 'idle';
+  fireSwordAttackAge = 0;
+
+  fireSwordCooldownRemaining =
+    CONFIG.fireSwordCooldown;
+}
+
+function releaseUltimateSwordTarget(
+  swordState
+) {
+  const target = swordState.target;
+
+  if (
+    target?.userData
+      .ultimateSwordOwner ===
+    swordState
+  ) {
+    target.userData
+      .ultimateSwordOwner = null;
+  }
+
+  swordState.target = null;
+}
+
+function clearUltimateSwordField() {
+  for (
+    const swordState
+    of ultimateSwordStates
+  ) {
+    releaseUltimateSwordTarget(
+      swordState
+    );
+  }
+
+  ultimateSwordStates.length = 0;
+
+  if (ultimateSwordField) {
+    const bladeMesh =
+      ultimateSwordField.userData
+        .bladeMesh;
+
+    const handleMesh =
+      ultimateSwordField.userData
+        .handleMesh;
+
+    ultimateSwordField
+      .removeFromParent();
+
+    bladeMesh?.geometry.dispose();
+    bladeMesh?.material.dispose();
+    handleMesh?.geometry.dispose();
+    handleMesh?.material.dispose();
+  }
+
+  ultimateSwordField = null;
+  ultimateSwordLaunchTimer = 0;
+  ultimateSwordLaunchIndex = 0;
+  ultimateSwordSpentCount = 0;
+}
+
+function writeUltimateSwordMatrix(
+  swordState
+) {
+  if (!ultimateSwordField) {
+    return;
+  }
+
+  const visibleScale =
+    swordState.status === 'spent'
+      ? 0
+      : swordState.status === 'flying'
+        ? 0.82
+        : 0.62;
+
+  ultimateSwordDummy.position.copy(
+    swordState.position
+  );
+
+  ultimateSwordDummy.quaternion.copy(
+    swordState.quaternion
+  );
+
+  ultimateSwordDummy.scale.setScalar(
+    visibleScale
+  );
+
+  ultimateSwordDummy.updateMatrix();
+
+  ultimateSwordField.userData
+    .bladeMesh.setMatrixAt(
+      swordState.index,
+      ultimateSwordDummy.matrix
+    );
+
+  ultimateSwordField.userData
+    .handleMesh.setMatrixAt(
+      swordState.index,
+      ultimateSwordDummy.matrix
+    );
+}
+
+function createUltimateSwordField(
+  ringCount =
+    CONFIG.ultimateSwordRingCount
+) {
+  /*
+   * Lưu hướng của những kiếm đã xuất hiện.
+   *
+   * Khi thêm vòng mới, hàm phải tạo lại
+   * InstancedMesh, nhưng những vòng cũ
+   * không được quay theo meteor mới.
+   */
+  const preservedQuaternions =
+    new Map();
+
+  for (
+    const previousSword
+    of ultimateSwordStates
+  ) {
+    const swordKey =
+      `${previousSword.ringIndex}:` +
+      `${previousSword.positionInRing}`;
+
+    preservedQuaternions.set(
+      swordKey,
+      previousSword.quaternion.clone()
+    );
+  }
+
+  clearUltimateSwordField();
+
+  const activeRingCount =
+    THREE.MathUtils.clamp(
+      Math.floor(ringCount),
+      1,
+      CONFIG.ultimateSwordRingCount
+    );
+
+  const swordsPerRing =
+    CONFIG.ultimateSwordCount /
+    CONFIG.ultimateSwordRingCount;
+
+  const activeSwordCount =
+    swordsPerRing *
+    activeRingCount;
+
+  ultimateSwordField =
+    new THREE.Group();
+
+  ultimateSwordField.name =
+    'van-kiem-quy-tong';
+
+  const bladeGeometry =
+    new THREE.ConeGeometry(
+      0.045,
+      1.05,
+      4
+    );
+
+  bladeGeometry.rotateX(
+    -Math.PI / 2
+  );
+
+  const handleGeometry =
+    new THREE.CylinderGeometry(
+      0.025,
+      0.025,
+      0.34,
+      5
+    );
+
+  handleGeometry.rotateX(
+    -Math.PI / 2
+  );
+  handleGeometry.translate(
+    0,
+    0,
+    0.66
+  );
+
+  const bladeMaterial =
+    new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      blending:
+        THREE.AdditiveBlending,
+      toneMapped: false
+    });
+
+  const handleMaterial =
+    new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.82,
+      depthWrite: false,
+      blending:
+        THREE.AdditiveBlending,
+      toneMapped: false
+    });
+
+  const bladeMesh =
+    new THREE.InstancedMesh(
+      bladeGeometry,
+      bladeMaterial,
+      activeSwordCount
+    );
+
+  const handleMesh =
+    new THREE.InstancedMesh(
+      handleGeometry,
+      handleMaterial,
+      activeSwordCount
+    );
+
+  bladeMesh.frustumCulled = false;
+  handleMesh.frustumCulled = false;
+
+  ultimateSwordField.userData
+    .bladeMesh = bladeMesh;
+
+  ultimateSwordField.userData
+    .handleMesh = handleMesh;
+
+  ultimateSwordField.add(
+    bladeMesh,
+    handleMesh
+  );
+
+  player.getWorldPosition(
+    playerWorldPosition
+  );
+
+  for (
+    let swordIndex = 0;
+    swordIndex <
+    activeSwordCount;
+    swordIndex += 1
+  ) {
+    const ringIndex =
+      Math.floor(
+        swordIndex /
+        swordsPerRing
+      );
+
+    const positionInRing =
+      swordIndex %
+      swordsPerRing;
+
+    const swordKey =
+      `${ringIndex}:` +
+      `${positionInRing}`;
+
+    const preservedQuaternion =
+      preservedQuaternions.get(
+        swordKey
+      );
+
+    const angle =
+      positionInRing /
+      swordsPerRing *
+      Math.PI * 2 +
+      ringIndex * 0.085;
+
+    const radius =
+      CONFIG.ultimateSwordInnerRadius +
+      ringIndex *
+        CONFIG.ultimateSwordRingSpacing;
+
+    /*
+    * Giữ nguyên phần tạo swordState
+    * hiện có ở phía dưới.
+    */
+
+    const swordState = {
+      index: swordIndex,
+
+      /*
+      * Dùng để sắp xếp thứ tự:
+      * vòng Z thấp phóng trước.
+      */
+      ringIndex,
+      positionInRing,
+
+      status: 'waiting',
+      target: null,
+      position:
+        new THREE.Vector3(
+          playerWorldPosition.x +
+          CONFIG
+            .ultimateSwordCenterOffsetX +
+          Math.cos(angle) *
+            radius,
+
+          playerWorldPosition.y +
+          CONFIG
+            .ultimateSwordCenterOffsetY +
+          Math.sin(angle) *
+            radius *
+            CONFIG
+              .ultimateSwordVerticalRatio,
+
+          playerWorldPosition.z +
+          CONFIG
+            .ultimateSwordCenterOffsetZ -
+          ringIndex *
+            CONFIG
+              .ultimateSwordDepthSpacing
+        ),
+      quaternion:
+        preservedQuaternion
+          ? preservedQuaternion.clone()
+          : AUTO_SWORD_IDLE_QUATERNION
+            .clone()
+    };
+
+    /*
+    * Kiếm của vòng cũ giữ nguyên hướng.
+    *
+    * Kiếm thuộc vòng mới luôn hướng tới
+    * tọa độ thế giới (0, 27, -62).
+    */
+    if (!preservedQuaternion) {
+      ultimateSwordDirection
+        .copy(
+          ULTIMATE_SWORD_PREVIEW_TARGET
+        )
+        .sub(
+          swordState.position
+        );
+
+      if (
+        ultimateSwordDirection.lengthSq() >
+        0.000001
+      ) {
+        ultimateSwordDirection.normalize();
+
+        swordState.quaternion
+          .setFromUnitVectors(
+            PROJECTILE_FORWARD_AXIS,
+            ultimateSwordDirection
+          );
+      }
+    }
+
+    ultimateSwordStates.push(
+      swordState
+    );
+
+    writeUltimateSwordMatrix(
+      swordState
+    );
+  }
+
+  /*
+  * Sắp xếp theo Z tăng dần:
+  * vòng có Z thấp phóng trước,
+  * vòng có Z cao phóng sau.
+  *
+  * Trong cùng một vòng, kiếm được
+  * sắp theo thứ tự quanh chu vi.
+  */
+  ultimateSwordStates.sort(
+    (
+      swordA,
+      swordB
+    ) => {
+      const zDifference =
+        swordB.position.z -
+        swordA.position.z;
+
+      if (
+        Math.abs(zDifference) >
+        0.000001
+      ) {
+        return zDifference;
+      }
+
+      return (
+        swordA.positionInRing -
+        swordB.positionInRing
+      );
+    }
+  );
+
+  bladeMesh.instanceMatrix.needsUpdate =
+    true;
+
+  handleMesh.instanceMatrix.needsUpdate =
+    true;
+
+  scene.add(ultimateSwordField);
+}
+
+function startUltimateSwordAttack() {
+  specialSwordCyclePhase =
+    'ultimate';
+
+  for (
+    const sword
+    of autonomousSwords
+  ) {
+    sword.visible = false;
+  }
+
+  if (fireSword) {
+    fireSword.visible = false;
+  }
+
+  /*
+   * Khi đã nạp đủ 5 vòng thì sử dụng
+   * trực tiếp hệ kiếm đang hiển thị.
+   *
+   * Không tạo lại toàn bộ field vì việc
+   * đó có thể làm các kiếm đổi hướng và
+   * tạo thêm allocation không cần thiết.
+   */
+  if (
+    !ultimateSwordField ||
+    ultimateSwordStates.length !==
+      CONFIG.ultimateSwordCount
+  ) {
+    createUltimateSwordField(
+      CONFIG.ultimateSwordRingCount
+    );
+  }
+
+  /*
+   * Bảo đảm tiến trình phóng bắt đầu
+   * từ nhóm kiếm đầu tiên.
+   */
+  ultimateSwordLaunchTimer = 0;
+  ultimateSwordLaunchIndex = 0;
+  ultimateSwordSpentCount = 0;
+
+  showHitLabel(
+    'VẠN KIẾM QUY TÔNG'
+  );
+}
+
+function finishUltimateSwordAttack() {
+  clearUltimateSwordField();
+
+  ultimateRingChargeCount = 0;
+
+  for (
+    const sword
+    of autonomousSwords
+  ) {
+    sword.visible = true;
+  }
+
+  if (fireSword) {
+    fireSword.visible = true;
+
+    setFireSwordIdleTransform();
+  }
+
+  specialSwordCyclePhase =
+    'auto';
+
+  autoSwordGroupPhase =
+    'cooldown';
+
+  autoSwordWaveCooldownRemaining = 0;
+}
+
+function findNearestUltimateStreamMeteor(
+  origin
+) {
+  let nearestMeteor = null;
+
+  let nearestDistanceSquared =
+    Infinity;
+
+  for (const meteor of meteors) {
+    if (!meteor.parent) {
+      continue;
+    }
+
+    const distanceSquared =
+      origin.distanceToSquared(
+        meteor.position
+      );
+
+    if (
+      distanceSquared <
+      nearestDistanceSquared
+    ) {
+      nearestDistanceSquared =
+        distanceSquared;
+
+      nearestMeteor = meteor;
+    }
+  }
+
+  return nearestMeteor;
+}
+
+function launchUltimateSwordBatch(
+  swordBatch
+) {
+  if (swordBatch.length === 0) {
+    return;
+  }
+
+  /*
+   * Tính tâm xuất phát chung của
+   * nhóm ba kiếm.
+   */
+  const streamOrigin =
+    new THREE.Vector3();
+
+  for (
+    const swordState
+    of swordBatch
+  ) {
+    streamOrigin.add(
+      swordState.position
+    );
+  }
+
+  streamOrigin.multiplyScalar(
+    1 / swordBatch.length
+  );
+
+  /*
+   * Chọn meteor gần tâm nhóm để
+   * xác định hướng bay ban đầu.
+   */
+  const target =
+    findNearestUltimateStreamMeteor(
+      streamOrigin
+    );
+
+  const streamDirection =
+    new THREE.Vector3();
+
+  if (target) {
+    target.getWorldPosition(
+      tempTarget
+    );
+
+    streamDirection
+      .copy(tempTarget)
+      .sub(streamOrigin);
+  } else {
+    /*
+     * Không có meteor thì bay theo
+     * hướng nhìn của nhân vật.
+     */
+    aimRig.getWorldQuaternion(
+      playerWorldQuaternion
+    );
+
+    streamDirection
+      .copy(
+        PROJECTILE_FORWARD_AXIS
+      )
+      .applyQuaternion(
+        playerWorldQuaternion
+      );
+  }
+
+  if (
+    streamDirection.lengthSq() <
+    0.000001
+  ) {
+    streamDirection.set(
+      0,
+      0,
+      -1
+    );
+  }
+
+  streamDirection.normalize();
+
+  /*
+   * Tạo trục ngang vuông góc với
+   * hướng di chuyển.
+   */
+  const referenceAxis =
+    Math.abs(streamDirection.y) >
+      0.92
+      ? new THREE.Vector3(
+        1,
+        0,
+        0
+      )
+      : new THREE.Vector3(
+        0,
+        1,
+        0
+      );
+
+  const formationAxisU =
+    new THREE.Vector3()
+      .crossVectors(
+        streamDirection,
+        referenceAxis
+      )
+      .normalize();
+
+  swordBatch.forEach(
+    (
+      swordState,
+      swordBatchIndex
+    ) => {
+      releaseUltimateSwordTarget(
+        swordState
+      );
+
+      swordState.status =
+        'flying';
+
+      swordState.streamAge = 0;
+      swordState.streamDistance = 0;
+
+      swordState.streamOrigin =
+        streamOrigin.clone();
+
+      swordState.streamDirection =
+        streamDirection.clone();
+
+      swordState.formationAxisU =
+        formationAxisU.clone();
+
+      /*
+       * Giữ lại vị trí ban đầu để kiếm
+       * hội tụ mượt, không bị dịch chuyển
+       * tức thời.
+       */
+      swordState.initialStreamOffset =
+        swordState.position
+          .clone()
+          .sub(streamOrigin);
+
+      /*
+       * Nhóm ba kiếm:
+       *
+       * kiếm 0: cánh trái
+       * kiếm 1: ở giữa và dẫn trước
+       * kiếm 2: cánh phải
+       */
+      const centeredIndex =
+        swordBatchIndex -
+        (swordBatch.length - 1) /
+          2;
+
+      swordState
+        .formationLateralOffset =
+        centeredIndex *
+        CONFIG
+          .ultimateSwordFormationHalfWidth;
+
+      swordState
+        .formationLeadDistance =
+        swordBatch.length === 3 &&
+        swordBatchIndex === 1
+          ? CONFIG
+            .ultimateSwordCenterLeadDistance
+          : 0;
+    }
+  );
+}
+
+function updateUltimateSwordAttack(
+  delta
+) {
+  if (!ultimateSwordField) {
+    return;
+  }
+
+  ultimateSwordLaunchTimer +=
+    delta;
+
+  /*
+   * Phóng theo từng nhóm 3 kiếm.
+   * Danh sách đã được sắp theo Z nên
+   * toàn bộ nhóm của vòng cao được
+   * phóng trước vòng thấp.
+   */
+  while (
+    ultimateSwordLaunchIndex <
+      ultimateSwordStates.length &&
+    ultimateSwordLaunchTimer >=
+      CONFIG
+        .ultimateSwordBatchInterval
+  ) {
+    const firstSword =
+      ultimateSwordStates[
+        ultimateSwordLaunchIndex
+      ];
+
+    const currentRingIndex =
+      firstSword.ringIndex;
+
+    const swordBatch = [];
+
+    /*
+     * Không cho một nhóm chứa kiếm
+     * thuộc hai vòng khác nhau.
+     */
+    while (
+      ultimateSwordLaunchIndex <
+        ultimateSwordStates.length &&
+      swordBatch.length <
+        CONFIG.ultimateSwordBatchSize
+    ) {
+      const swordState =
+        ultimateSwordStates[
+          ultimateSwordLaunchIndex
+        ];
+
+      if (
+        swordState.ringIndex !==
+        currentRingIndex
+      ) {
+        break;
+      }
+
+      swordBatch.push(
+        swordState
+      );
+
+      ultimateSwordLaunchIndex += 1;
+    }
+
+    launchUltimateSwordBatch(
+      swordBatch
+    );
+
+    ultimateSwordLaunchTimer -=
+      CONFIG
+        .ultimateSwordBatchInterval;
+  }
+
+  for (
+    const swordState
+    of ultimateSwordStates
+  ) {
+    if (
+      swordState.status === 'spent'
+    ) {
+      continue;
+    }
+
+    /*
+    * Kiếm chưa đến lượt phóng tiếp tục
+    * giữ hướng nhìn về (0, 27, -62).
+    *
+    * Chỉ khi được phóng, launchUltimateSwordBatch()
+    * mới quyết định hướng tấn công.
+    */
+    if (
+      swordState.status === 'waiting'
+    ) {
+      writeUltimateSwordMatrix(
+        swordState
+      );
+
+      continue;
+    }
+
+    /*
+     * Kiếm đang bay liên tục.
+     */
+    ultimateSwordPreviousPosition
+      .copy(
+        swordState.position
+      );
+
+    swordState.streamAge +=
+      delta;
+
+    swordState.streamDistance +=
+      CONFIG.ultimateSwordSpeed *
+      delta;
+
+    /*
+     * Tâm dòng kiếm di chuyển thẳng
+     * theo trục chung của nhóm.
+     */
+    ultimateSwordStreamCenter
+      .copy(
+        swordState.streamOrigin
+      )
+      .addScaledVector(
+        swordState.streamDirection,
+        swordState.streamDistance
+      );
+
+      /*
+      * Kiếm hội tụ từ vị trí trên vòng
+      * vào đội hình tam giác.
+      */
+      const rawBlend =
+        THREE.MathUtils.clamp(
+          swordState.streamAge /
+          Math.max(
+            CONFIG
+              .ultimateSwordFormationBlendDuration,
+            0.0001
+          ),
+          0,
+          1
+        );
+
+      const smoothBlend =
+        rawBlend *
+        rawBlend *
+        (
+          3 -
+          2 * rawBlend
+        );
+
+      /*
+      * Hai kiếm cánh nằm hai bên.
+      * Kiếm giữa dẫn trước theo đúng
+      * hướng bay của cả nhóm.
+      */
+      ultimateSwordFormationOffset
+        .copy(
+          swordState.formationAxisU
+        )
+        .multiplyScalar(
+          swordState
+            .formationLateralOffset
+        )
+        .addScaledVector(
+          swordState.streamDirection,
+          swordState
+            .formationLeadDistance
+        );
+
+      swordState.position
+        .copy(
+          ultimateSwordStreamCenter
+        )
+        .addScaledVector(
+          swordState.initialStreamOffset,
+          1 - smoothBlend
+        )
+        .addScaledVector(
+          ultimateSwordFormationOffset,
+          smoothBlend
+        );
+
+      /*
+      * Mũi kiếm luôn hướng theo chuyển động.
+      */
+      ultimateSwordMovement
+        .copy(
+          swordState.position
+        )
+        .sub(
+          ultimateSwordPreviousPosition
+        );
+
+      if (
+        ultimateSwordMovement.lengthSq() >
+        0.000001
+      ) {
+        ultimateSwordMovement.normalize();
+
+        swordState.quaternion
+          .setFromUnitVectors(
+            PROJECTILE_FORWARD_AXIS,
+            ultimateSwordMovement
+          );
+      }
+
+    /*
+     * Quét cả đoạn đường vừa đi thay
+     * vì chỉ kiểm tra điểm cuối.
+     *
+     * Cách này tránh xuyên meteor khi
+     * tốc độ kiếm cao.
+     */
+    collisionSegment.set(
+      ultimateSwordPreviousPosition,
+      swordState.position
+    );
+
+    for (
+      let meteorIndex =
+        meteors.length - 1;
+      meteorIndex >= 0;
+      meteorIndex -= 1
+    ) {
+      const meteor =
+        meteors[meteorIndex];
+
+      if (!meteor?.parent) {
+        continue;
+      }
+
+      collisionSegment
+        .closestPointToPoint(
+          meteor.position,
+          true,
+          closestPoint
+        );
+
+      const collisionRadius =
+        meteor.userData.radius +
+        CONFIG
+          .ultimateSwordHitRadius;
+
+      if (
+        closestPoint
+          .distanceToSquared(
+            meteor.position
+          ) >
+        collisionRadius *
+        collisionRadius
+      ) {
+        continue;
+      }
+
+      const hitPosition =
+        meteor.position.clone();
+
+      registerHit(
+        hitPosition,
+        CONFIG
+          .ultimateSwordBurstColor
+      );
+
+      removeMeteor(
+        meteorIndex
+      );
+
+      /*
+       * Không đặt kiếm thành spent.
+       * Kiếm tiếp tục lướt theo dòng
+       * và có thể phá meteor tiếp theo.
+       */
+    }
+
+    /*
+     * Kiếm chỉ biến mất sau khi bay
+     * hết toàn bộ quãng đường.
+     */
+    if (
+      swordState.streamDistance >=
+      CONFIG
+        .ultimateSwordTravelDistance
+    ) {
+      swordState.status =
+        'spent';
+
+      ultimateSwordSpentCount += 1;
+    }
+
+    writeUltimateSwordMatrix(
+      swordState
+    );
+  }
+
+  ultimateSwordField.userData
+    .bladeMesh.instanceMatrix
+    .needsUpdate = true;
+
+  ultimateSwordField.userData
+    .handleMesh.instanceMatrix
+    .needsUpdate = true;
+
+  if (
+    ultimateSwordSpentCount >=
+    ultimateSwordStates.length
+  ) {
+    finishUltimateSwordAttack();
+  }
 }
 
 function createAutonomousSword(
@@ -2742,7 +5106,7 @@ function createAutonomousSword(
 
   sword.userData
     .lastTargetPosition =
-      new THREE.Vector3();
+    new THREE.Vector3();
 
   sword.add(visual);
 
@@ -2753,13 +5117,11 @@ function createAutonomousSword(
 
   getAutonomousSwordOrbitPosition(
     swordIndex,
-
     Math.max(
       1,
       autonomousSwords.length +
-        1
+      1
     ),
-
     autoSwordOrbitPosition
   );
 
@@ -2924,7 +5286,11 @@ function getAvailableAutonomousSwordTargets() {
       return (
         meteor.parent &&
         !meteor.userData
-          .autoSwordOwner
+          .autoSwordOwner &&
+        !meteor.userData
+          .specialSwordOwner &&
+        !meteor.userData
+          .ultimateSwordOwner
       );
     })
     .sort(
@@ -2932,10 +5298,6 @@ function getAvailableAutonomousSwordTargets() {
         meteorA,
         meteorB
       ) => {
-        /*
-         * Xét tất cả meteor trên sân
-         * và sắp xếp từ gần đến xa.
-         */
         return (
           playerWorldPosition
             .distanceToSquared(
@@ -2972,7 +5334,7 @@ function assignAutonomousSwordTarget(
 
   target.userData
     .autoSwordOwner =
-      sword;
+    sword;
 
   target.getWorldPosition(
     sword.userData
@@ -2986,21 +5348,20 @@ function findNearestAvailableMeteorToPoint(
   origin
 ) {
   let nearestMeteor = null;
-
   let nearestDistanceSquared =
     Infinity;
 
   for (
     const meteor of meteors
   ) {
-    /*
-     * Chỉ bỏ qua meteor đã bị xóa
-     * hoặc đang được kiếm khác giữ.
-     */
     if (
       !meteor.parent ||
       meteor.userData
-        .autoSwordOwner
+        .autoSwordOwner ||
+      meteor.userData
+        .specialSwordOwner ||
+      meteor.userData
+        .ultimateSwordOwner
     ) {
       continue;
     }
@@ -3051,10 +5412,6 @@ function startAutonomousSwordWave() {
   const availableTargets =
     getAvailableAutonomousSwordTargets();
 
-  /*
-   * Chỉ bắt đầu đợt khi số meteor
-   * hợp lệ ít nhất bằng số kiếm.
-   */
   if (
     availableTargets.length <
     waveSwords.length
@@ -3078,9 +5435,8 @@ function startAutonomousSwordWave() {
 
       assignAutonomousSwordTarget(
         sword,
-
         availableTargets[
-          swordIndex
+        swordIndex
         ]
       );
     }
@@ -3098,12 +5454,10 @@ function updateAutonomousSwordOrbit(
 ) {
   getAutonomousSwordOrbitPosition(
     sword.userData.slotIndex,
-
     Math.max(
       1,
       autonomousSwords.length
     ),
-
     autoSwordOrbitPosition
   );
 
@@ -3112,7 +5466,7 @@ function updateAutonomousSwordOrbit(
     Math.exp(
       -CONFIG
         .autoSwordOrbitFollowStrength *
-        delta
+      delta
     );
 
   sword.position.lerp(
@@ -3174,14 +5528,14 @@ function finishAutonomousSwordGroupReturn() {
     const sword
     of autonomousSwords
   ) {
-    sword.userData
-      .isWaveMember = false;
+    sword.userData.isWaveMember =
+      false;
 
-    sword.userData
-      .hasStruck = false;
+    sword.userData.hasStruck =
+      false;
 
-    sword.userData
-      .hasReturned = false;
+    sword.userData.hasReturned =
+      false;
 
     releaseAutonomousSwordTarget(
       sword
@@ -3192,9 +5546,24 @@ function finishAutonomousSwordGroupReturn() {
     'cooldown';
 
   /*
-   * Chỉ bắt đầu 5 giây mới sau khi
-   * toàn bộ nhóm đã về quỹ đạo.
+   * Từ Level 12, sau khi toàn bộ
+   * kiếm tự động quay về thì chuyển
+   * ngay sang lượt kiếm lửa.
    */
+  if (
+    state.level >= 12 &&
+    specialSwordCyclePhase ===
+      'auto'
+  ) {
+    autoSwordWaveCooldownRemaining =
+      0;
+
+    specialSwordCyclePhase =
+      'red';
+
+    return;
+  }
+
   autoSwordWaveCooldownRemaining =
     CONFIG.autoSwordWaveCooldown;
 }
@@ -3214,7 +5583,6 @@ function updateAutonomousSwordAttackers(
     waveSwords.length === 0
   ) {
     finishAutonomousSwordGroupReturn();
-
     return;
   }
 
@@ -3222,10 +5590,6 @@ function updateAutonomousSwordAttackers(
     const sword
     of waveSwords
   ) {
-    /*
-     * Kiếm chém xong đứng yên,
-     * chờ các kiếm còn lại.
-     */
     if (
       sword.userData.hasStruck
     ) {
@@ -3241,18 +5605,13 @@ function updateAutonomousSwordAttackers(
       meteors.includes(target) &&
       target.userData
         .autoSwordOwner ===
-        sword;
+      sword;
 
     if (!hasValidTarget) {
       releaseAutonomousSwordTarget(
         sword
       );
 
-      /*
-       * Target cũ đã bị phá:
-       * chọn meteor chưa bị giữ gần
-       * vị trí cuối của target cũ nhất.
-       */
       target =
         findNearestAvailableMeteorToPoint(
           sword.userData
@@ -3267,10 +5626,6 @@ function updateAutonomousSwordAttackers(
       }
     }
 
-    /*
-     * Nếu chưa có mục tiêu thay thế,
-     * kiếm đứng yên trong không gian.
-     */
     if (!target) {
       continue;
     }
@@ -3317,7 +5672,7 @@ function updateAutonomousSwordAttackers(
     if (
       distanceToTarget <=
       hitDistance +
-        travelDistance
+      travelDistance
     ) {
       const meteorIndex =
         meteors.indexOf(
@@ -3334,10 +5689,6 @@ function updateAutonomousSwordAttackers(
       if (
         meteorIndex !== -1
       ) {
-        /*
-         * Mỗi kiếm chỉ được chém
-         * đúng một meteor trong đợt.
-         */
         sword.userData.hasStruck =
           true;
 
@@ -3372,7 +5723,7 @@ function updateAutonomousSwordAttackers(
 
   if (
     currentWaveSwords.length >
-      0 &&
+    0 &&
     currentWaveSwords.every(
       (sword) => {
         return sword.userData
@@ -3399,7 +5750,6 @@ function updateAutonomousSwordGroupReturn(
     waveSwords.length === 0
   ) {
     finishAutonomousSwordGroupReturn();
-
     return;
   }
 
@@ -3409,12 +5759,10 @@ function updateAutonomousSwordGroupReturn(
   ) {
     getAutonomousSwordOrbitPosition(
       sword.userData.slotIndex,
-
       Math.max(
         1,
         autonomousSwords.length
       ),
-
       autoSwordOrbitPosition
     );
 
@@ -3446,7 +5794,7 @@ function updateAutonomousSwordGroupReturn(
       distanceToOrbit <=
       CONFIG
         .autoSwordReturnArrivalDistance +
-        travelDistance
+      travelDistance
     ) {
       sword.position.copy(
         autoSwordOrbitPosition
@@ -3512,22 +5860,15 @@ function updateAutonomousSwordGroupReturn(
       .autoSwordReturnArrivalDistance **
     2;
 
-  /*
-   * Kiếm được thêm giữa đợt không
-   * tham chiến, nhưng vẫn phải ở đúng
-   * quỹ đạo trước khi cooldown bắt đầu.
-   */
   const allSwordsAreOnOrbit =
     autonomousSwords.every(
       (sword) => {
         getAutonomousSwordOrbitPosition(
           sword.userData.slotIndex,
-
           Math.max(
             1,
             autonomousSwords.length
           ),
-
           autoSwordOrbitPosition
         );
 
@@ -3563,10 +5904,46 @@ function updateAutonomousSwords(
     return;
   }
 
-  /*
-   * Khi đang trở về, khóa góc quỹ đạo
-   * để điểm đích không tiếp tục chạy.
-   */
+  if (
+    state.level >= 12 &&
+    specialSwordCyclePhase !==
+      'auto'
+  ) {
+    /*
+    * Trong lượt kiếm lửa, nhóm kiếm
+    * tự động chỉ quay quanh nhân vật.
+    *
+    * Riêng Level 20, khi Vạn Kiếm
+    * hoạt động thì không cập nhật
+    * nhóm kiếm tự động.
+    */
+    if (
+      specialSwordCyclePhase ===
+        'ultimate'
+    ) {
+      return;
+    }
+
+    autoSwordOrbitAngle +=
+      CONFIG.autoSwordOrbitSpeed *
+      delta;
+
+    autoSwordOrbitAngle %=
+      Math.PI * 2;
+
+    for (
+      const sword
+      of autonomousSwords
+    ) {
+      updateAutonomousSwordOrbit(
+        sword,
+        delta
+      );
+    }
+
+    return;
+  }
+
   if (
     autoSwordGroupPhase !==
     'returning'
@@ -3596,15 +5973,10 @@ function updateAutonomousSwords(
     autoSwordWaveCooldownRemaining =
       Math.max(
         0,
-
         autoSwordWaveCooldownRemaining -
           delta
       );
 
-    /*
-     * Hết 5 giây nhưng chưa đủ meteor:
-     * nhóm tiếp tục quay và chờ.
-     */
     if (
       autoSwordWaveCooldownRemaining <=
       0
@@ -3619,10 +5991,6 @@ function updateAutonomousSwords(
     autoSwordGroupPhase ===
     'attacking'
   ) {
-    /*
-     * Kiếm mới được thêm giữa đợt
-     * chỉ quay và chờ đợt tiếp theo.
-     */
     for (
       const sword
       of autonomousSwords
@@ -3683,14 +6051,6 @@ function updatePausedAutonomousSwords(
     return;
   }
 
-  /*
-   * isWaveMember = true:
-   * kiếm đang tham gia đợt tấn công,
-   * đang chờ kiếm khác hoặc đang trở về.
-   *
-   * isWaveMember = false:
-   * kiếm hiện đang quay quanh nhân vật.
-   */
   const orbitingSwords =
     autonomousSwords.filter(
       (sword) => {
@@ -3699,10 +6059,6 @@ function updatePausedAutonomousSwords(
       }
     );
 
-  /*
-   * Không có kiếm nào quanh nhân vật:
-   * giữ nguyên toàn bộ hệ thống.
-   */
   if (
     orbitingSwords.length === 0
   ) {
@@ -3716,10 +6072,6 @@ function updatePausedAutonomousSwords(
   autoSwordOrbitAngle %=
     Math.PI * 2;
 
-  /*
-   * Chỉ cập nhật những kiếm vẫn đang
-   * nằm trên quỹ đạo quanh nhân vật.
-   */
   for (
     const sword
     of orbitingSwords
@@ -3731,9 +6083,634 @@ function updatePausedAutonomousSwords(
   }
 }
 
+function findNearestFireSwordTarget() {
+  if (!fireSword) {
+    return null;
+  }
+
+  const origin =
+    fireSword.getWorldPosition(
+      fireSwordIdleWorldPosition
+    );
+
+  let nearestMeteor = null;
+  let nearestDistanceSquared =
+    Infinity;
+
+  for (const meteor of meteors) {
+    if (
+      !meteor.parent ||
+      meteor.userData.autoSwordOwner ||
+      meteor.userData.specialSwordOwner ||
+      meteor.userData.ultimateSwordOwner
+    ) {
+      continue;
+    }
+
+    const distanceSquared =
+      origin.distanceToSquared(
+        meteor.position
+      );
+
+    if (
+      distanceSquared <
+      nearestDistanceSquared
+    ) {
+      nearestDistanceSquared =
+        distanceSquared;
+
+      nearestMeteor = meteor;
+    }
+  }
+
+  return nearestMeteor;
+}
+
+function assignFireSwordTarget(target) {
+  if (
+    !fireSword ||
+    !target ||
+    !target.parent ||
+    target.userData.autoSwordOwner ||
+    target.userData.specialSwordOwner ||
+    target.userData.ultimateSwordOwner
+  ) {
+    return null;
+  }
+
+  releaseFireSwordTarget();
+
+  fireSwordTarget = target;
+
+  target.userData.specialSwordOwner =
+    fireSword;
+
+  return target;
+}
+
+function startFireSwordAttack() {
+  if (
+    !fireSword ||
+    fireSwordPhase !== 'idle'
+  ) {
+    return false;
+  }
+
+  const target =
+    findNearestFireSwordTarget();
+
+  if (!target) {
+    return false;
+  }
+
+  scene.attach(fireSword);
+
+  fireSword.userData
+    .attackBaseScale =
+    fireSword.scale.x;
+
+  fireSwordAttackAge = 0;
+
+  assignFireSwordTarget(target);
+
+  fireSwordPhase = 'attacking';
+
+  return true;
+}
+
+function updateFireSwordScale(
+  delta,
+  enlarged
+) {
+  if (!fireSword) {
+    return;
+  }
+
+  const baseScale =
+    fireSword.userData
+      .attackBaseScale ??
+    CONFIG.fireSwordIdleScale;
+
+  const attackScaleRatio =
+    CONFIG.fireSwordAttackScale /
+    CONFIG.fireSwordIdleScale;
+
+  const targetScale =
+    enlarged
+      ? baseScale * attackScaleRatio
+      : baseScale;
+
+  const scaleFollowAmount =
+    1 -
+    Math.exp(
+      -CONFIG
+        .fireSwordScaleFollowStrength *
+      delta
+    );
+
+  const nextScale =
+    THREE.MathUtils.lerp(
+      fireSword.scale.x,
+      targetScale,
+      scaleFollowAmount
+    );
+
+  fireSword.scale.setScalar(
+    nextScale
+  );
+}
+
+function updateFireSwordVisual(delta) {
+  if (!fireSword) {
+    return;
+  }
+
+  const flameEffect =
+    fireSword.getObjectByName(
+      'fire-sword-flames'
+    );
+
+  const flameIntensity =
+    fireSwordPhase === 'attacking'
+      ? 1.42
+      : fireSwordPhase === 'returning'
+        ? 1.18
+        : 1;
+
+  updateFireEffect(
+    flameEffect,
+    delta,
+    flameIntensity
+  );
+}
+
+function completeFireSwordTurn() {
+  fireSwordPhase = 'idle';
+
+  setFireSwordIdleTransform();
+
+  /*
+   * Level 11 vẫn dùng cơ chế kiếm lửa
+   * tấn công định kỳ.
+   */
+  if (state.level < 12) {
+    fireSwordCooldownRemaining =
+      CONFIG.fireSwordCooldown;
+
+    specialSwordCyclePhase =
+      'fire-periodic';
+
+    return;
+  }
+
+  /*
+   * Tại Level 20, mỗi lần kiếm lửa
+   * quay về sẽ xuất hiện thêm một vòng.
+   */
+  if (state.level >= 20) {
+    ultimateRingChargeCount =
+      Math.min(
+        CONFIG.ultimateSwordRingCount,
+        ultimateRingChargeCount +
+          CONFIG.ultimateRingChargeStep
+      );
+
+    /*
+     * Hiện từ một đến năm vòng kiếm.
+     * Các vòng này chỉ đứng chờ.
+     */
+    createUltimateSwordField(
+      ultimateRingChargeCount
+    );
+
+    /*
+     * Đủ năm vòng mới thi triển
+     * Vạn Kiếm Quy Tông.
+     */
+    if (
+      ultimateRingChargeCount >=
+      CONFIG.ultimateSwordRingCount
+    ) {
+      specialSwordCyclePhase =
+        'charging';
+
+      ultimateChargeTimer =
+        CONFIG.ultimateChargeDelay;
+
+      return;
+    }
+  }
+
+  /*
+   * Kiếm lửa đã về:
+   * chuyển lại cho nhóm kiếm tự động,
+   * nhưng phải đợi đủ hai giây.
+   */
+  specialSwordCyclePhase =
+    'auto';
+
+  autoSwordGroupPhase =
+    'cooldown';
+
+  autoSwordWaveCooldownRemaining =
+    CONFIG.autoSwordAfterFireDelay;
+}
+
+function updateFireSwordAttack(delta) {
+  if (!fireSword) {
+    return;
+  }
+
+  if (fireSwordPhase === 'idle') {
+    startFireSwordAttack();
+    return;
+  }
+
+  if (fireSwordPhase === 'attacking') {
+    fireSwordAttackAge += delta;
+
+    updateFireSwordScale(
+      delta,
+      fireSwordAttackAge >=
+        CONFIG.fireSwordEnlargeDelay
+    );
+    let target = fireSwordTarget;
+
+    const hasValidTarget =
+      target &&
+      target.parent &&
+      meteors.includes(target) &&
+      target.userData
+        .specialSwordOwner ===
+      fireSword;
+
+    if (!hasValidTarget) {
+      releaseFireSwordTarget();
+
+      target =
+        findNearestFireSwordTarget();
+
+      if (target) {
+        assignFireSwordTarget(target);
+      }
+    }
+
+    if (!target) {
+      return;
+    }
+
+    target.getWorldPosition(
+      tempTarget
+    );
+
+    fireSwordDirection
+      .copy(tempTarget)
+      .sub(fireSword.position);
+
+    const distanceToTarget =
+      fireSwordDirection.length();
+
+    if (
+      distanceToTarget > 0.0001
+    ) {
+      fireSwordDirection
+        .divideScalar(
+          distanceToTarget
+        );
+
+      fireSword.quaternion
+        .setFromUnitVectors(
+          PROJECTILE_FORWARD_AXIS,
+          fireSwordDirection
+        );
+    }
+
+    const travelDistance =
+      CONFIG.fireSwordSpeed * delta;
+
+    const hitDistance =
+      target.userData.radius +
+      CONFIG.fireSwordHitRadius;
+
+    if (
+      distanceToTarget <=
+      hitDistance + travelDistance
+    ) {
+      const meteorIndex =
+        meteors.indexOf(target);
+
+      const hitPosition =
+        tempTarget.clone();
+
+      releaseFireSwordTarget();
+
+      if (meteorIndex !== -1) {
+        igniteNearbyMeteors(
+          hitPosition,
+          target
+        );
+
+        registerHit(
+          hitPosition,
+          CONFIG.fireSwordBurstColor
+        );
+
+        createFireExplosion(
+          hitPosition
+        );
+
+        target.userData
+          .fireExplosionCreated = true;
+
+        removeMeteor(meteorIndex);
+      }
+
+      fireSwordPhase = 'returning';
+      fireSwordAttackAge = 0;
+
+      return;
+    }
+
+    fireSword.position
+      .addScaledVector(
+        fireSwordDirection,
+        travelDistance
+      );
+
+    return;
+  }
+
+  if (fireSwordPhase === 'returning') {
+    updateFireSwordScale(
+      delta,
+      false
+    );
+    fireSwordIdleWorldPosition.set(
+      0,
+      CONFIG.fireSwordIdleY,
+      CONFIG.fireSwordIdleZ
+    );
+
+    aimRig.localToWorld(
+      fireSwordIdleWorldPosition
+    );
+
+    fireSwordDirection
+      .copy(fireSwordIdleWorldPosition)
+      .sub(fireSword.position);
+
+    const distanceToIdle =
+      fireSwordDirection.length();
+
+    const travelDistance =
+      CONFIG.fireSwordReturnSpeed *
+      delta;
+
+    if (
+      distanceToIdle <=
+      CONFIG
+        .autoSwordReturnArrivalDistance +
+      travelDistance
+    ) {
+      completeFireSwordTurn();
+      return;
+    }
+
+    if (distanceToIdle > 0.0001) {
+      fireSwordDirection
+        .divideScalar(
+          distanceToIdle
+        );
+
+      fireSword.quaternion
+        .setFromUnitVectors(
+          PROJECTILE_FORWARD_AXIS,
+          fireSwordDirection
+        );
+    }
+
+    fireSword.position.addScaledVector(
+      fireSwordDirection,
+      travelDistance
+    );
+  }
+}
+
+function syncSpecialSwordSystem(
+  level
+) {
+  /*
+   * Dưới Level 11 chưa có kiếm lửa.
+   */
+  if (level < 11) {
+    removeFireSword();
+
+    clearUltimateSwordField();
+
+    ultimateRingChargeCount = 0;
+    ultimateChargeTimer = 0;
+
+    fireSwordCooldownRemaining =
+      CONFIG.fireSwordCooldown;
+
+    specialSwordCyclePhase =
+      'inactive';
+
+    return;
+  }
+
+  /*
+   * Từ Level 11 trở đi luôn tồn tại
+   * một kiếm lửa.
+   */
+  createFireSword();
+
+  /*
+   * Riêng Level 11:
+   * kiếm lửa tấn công sau mỗi 5 giây.
+   */
+  if (level < 12) {
+    clearUltimateSwordField();
+
+    ultimateRingChargeCount = 0;
+    ultimateChargeTimer = 0;
+
+    if (
+      specialSwordCyclePhase !==
+        'fire-periodic'
+    ) {
+      specialSwordCyclePhase =
+        'fire-periodic';
+
+      fireSwordCooldownRemaining =
+        CONFIG.fireSwordCooldown;
+    }
+
+    return;
+  }
+
+  /*
+   * Level 12–19 tuyệt đối không dùng
+   * kiếm hai bên hoặc Vạn Kiếm.
+   */
+  if (level < 20) {
+    clearUltimateSwordField();
+
+    ultimateRingChargeCount = 0;
+    ultimateChargeTimer = 0;
+  }
+
+  /*
+   * Khi vừa chuyển từ Level 11 sang
+   * Level 12, bắt đầu bằng lượt của
+   * nhóm kiếm tự động.
+   *
+   * Nếu kiếm lửa đang bay thì cho nó
+   * hoàn thành trước để tránh dịch
+   * chuyển tức thời về vị trí đứng.
+   */
+  if (
+    specialSwordCyclePhase ===
+      'inactive' ||
+    specialSwordCyclePhase ===
+      'fire-periodic'
+  ) {
+    specialSwordCyclePhase =
+      fireSwordPhase === 'idle'
+        ? 'auto'
+        : 'red';
+
+    if (
+      specialSwordCyclePhase ===
+        'auto' &&
+      autoSwordGroupPhase ===
+        'cooldown'
+    ) {
+      autoSwordWaveCooldownRemaining =
+        0;
+    }
+  }
+}
+
+function updateSpecialSwordSystem(
+  delta
+) {
+  /*
+   * Dưới Level 11 không có kiếm lửa.
+   */
+  if (state.level < 11) {
+    return;
+  }
+
+  /*
+   * Luôn cập nhật hiệu ứng ngọn lửa.
+   */
+  updateFireSwordVisual(delta);
+
+  /*
+   * Riêng Level 11:
+   * kiếm lửa tấn công sau mỗi 5 giây.
+   */
+  if (state.level < 12) {
+    if (fireSwordPhase === 'idle') {
+      fireSwordCooldownRemaining =
+        Math.max(
+          0,
+          fireSwordCooldownRemaining -
+            delta
+        );
+
+      if (
+        fireSwordCooldownRemaining <=
+        0
+      ) {
+        startFireSwordAttack();
+      }
+    } else {
+      updateFireSwordAttack(delta);
+    }
+
+    return;
+  }
+
+  /*
+   * Level 12–20:
+   * chỉ cập nhật kiếm lửa khi máy
+   * trạng thái chuyển đến lượt của nó.
+   */
+  if (
+    specialSwordCyclePhase ===
+      'red'
+  ) {
+    updateFireSwordAttack(delta);
+
+    return;
+  }
+
+  /*
+   * Hai pha dưới đây chỉ được phép
+   * hoạt động tại Level 20.
+   */
+  if (
+    state.level >= 20 &&
+    specialSwordCyclePhase ===
+      'charging'
+  ) {
+    ultimateChargeTimer =
+      Math.max(
+        0,
+        ultimateChargeTimer - delta
+      );
+
+    if (
+      ultimateChargeTimer <= 0
+    ) {
+      startUltimateSwordAttack();
+    }
+
+    return;
+  }
+
+  if (
+    state.level >= 20 &&
+    specialSwordCyclePhase ===
+      'ultimate'
+  ) {
+    updateUltimateSwordAttack(delta);
+  }
+}
+
 function updateLevelSwords(level) {
   updateBackSwordFan(level);
   syncAutonomousSwords(level);
+  syncSpecialSwordSystem(level);
+}
+
+function getLevelRewardLabel(level) {
+  if (level <= 5) {
+    return (
+      `${level} KIẾM CẤP I`
+    );
+  }
+
+  if (level <= 10) {
+    return (
+      `${level - 5} KIẾM CẤP II`
+    );
+  }
+
+  if (level === 11) {
+    return 'KIẾM LỬA THỨC TỈNH';
+  }
+
+  if (level <= 19) {
+    return (
+      `${getAutonomousSwordCount(level)} ` +
+      'KIẾM TỰ ĐỘNG'
+    );
+  }
+
+  return 'CẤP TỐI ĐA';
 }
 
 function advanceLevelProgress() {
@@ -3812,9 +6789,9 @@ function registerHit(
     now - state.lastHitAt <
       2200
       ? Math.min(
-          state.combo + 1,
-          9
-        )
+        state.combo + 1,
+        9
+      )
       : 1;
 
   state.lastHitAt = now;
@@ -3840,14 +6817,10 @@ function registerHit(
 
   showHitLabel(
     leveledUp
-      ? state.level >
-        CONFIG.maxManualSwords
-        ? `LEVEL ${state.level} • ` +
-          `${getAutonomousSwordCount(state.level)} ` +
-          'KIẾM TỰ ĐỘNG'
-        : `LEVEL ${state.level} • ` +
-          `${state.level} KIẾM`
-      : `TRÚNG • +${gained}`
+      ? getLevelRewardLabel(
+        state.level
+      )
+      : `+ ${gained}`
   );
 
   updateHud();
@@ -3911,10 +6884,8 @@ function createBurst(
       new THREE.Vector3(
         THREE.MathUtils
           .randFloatSpread(7),
-
         THREE.MathUtils
           .randFloatSpread(7),
-
         THREE.MathUtils
           .randFloatSpread(7)
       )
@@ -3926,7 +6897,6 @@ function createBurst(
 
   geometry.setAttribute(
     'position',
-
     new THREE.BufferAttribute(
       positions,
       3
@@ -4024,7 +6994,7 @@ function updateBursts(delta) {
       Math.max(
         0,
         burst.userData.life /
-          0.56
+        0.56
       );
 
     if (
@@ -4036,7 +7006,6 @@ function updateBursts(delta) {
       );
 
       scene.remove(burst);
-
       burst.geometry.dispose();
       burst.material.dispose();
     }
@@ -4057,9 +7026,6 @@ function startOrResumeGame() {
     state.overlayMode =
       'playing';
 
-    /*
-    * Compact: khôi phục vị trí ngay trước Pause.
-    */
     restoreCompactAimBeforePause();
 
     startScreen.classList.add(
@@ -4100,19 +7066,10 @@ function startOrResumeGame() {
   state.overlayMode =
     'playing';
 
-  /*
-  * Đây là trận mới nên không sử dụng
-  * vị trí đã lưu từ lần Pause trước.
-  */
   hasAimScreenBeforePause =
     false;
 
-  /*
-  * Bắt đầu hoặc Chơi lại vẫn dùng
-  * vị trí mặc định.
-  */
   resetCompactAimToDefault();
-
   updateHud();
 
   startScreen.classList.add(
@@ -4136,10 +7093,6 @@ function pauseGame() {
     return;
   }
 
-  /*
-   * Chỉ lưu vị trí trước Pause
-   * trên màn hình compact.
-   */
   if (isCompactScreen) {
     aimScreenBeforePause.copy(
       aimScreen
@@ -4154,10 +7107,6 @@ function pauseGame() {
   state.overlayMode =
     'pause';
 
-  /*
-   * Dừng bắn và giải phóng pointer hiện tại.
-   * Người chơi vẫn có thể chạm lại để ngắm.
-   */
   stopAllAimPointerInput();
 
   gameTitle.innerHTML =
@@ -4173,9 +7122,6 @@ function pauseGame() {
     'is-hidden'
   );
 
-  /*
-  * Ẩn tâm ngắm khi Pause.
-  */
   reticle.classList.remove(
     'is-visible'
   );
@@ -4193,7 +7139,6 @@ function endGame() {
     'gameover';
 
   stopAllAimPointerInput();
-
   clearDynamicObjects();
 
   if (
@@ -4242,6 +7187,17 @@ function clearDynamicObjects() {
 
   removeBackSwordFan();
   removeAllAutonomousSwords();
+  removeFireSword();
+  clearUltimateSwordField();
+
+  ultimateRingChargeCount = 0;
+  ultimateChargeTimer = 0;
+
+  fireSwordCooldownRemaining =
+    CONFIG.fireSwordCooldown;
+
+  specialSwordCyclePhase =
+    'inactive';
 
   while (
     projectiles.length
@@ -4254,9 +7210,14 @@ function clearDynamicObjects() {
   while (
     meteors.length
   ) {
-    scene.remove(
-      meteors.pop()
+    const meteor =
+      meteors.pop();
+
+    disposeFireEffectGeometry(
+      meteor.userData.fireEffect
     );
+
+    scene.remove(meteor);
   }
 
   while (
@@ -4266,9 +7227,20 @@ function clearDynamicObjects() {
       bursts.pop();
 
     scene.remove(burst);
-
     burst.geometry.dispose();
     burst.material.dispose();
+  }
+
+  while (
+    fireExplosions.length
+  ) {
+    const explosion =
+      fireExplosions.pop();
+
+    scene.remove(explosion);
+
+    explosion.userData.ring
+      ?.material.dispose();
   }
 }
 
@@ -4280,7 +7252,6 @@ function updateHud() {
 
   shield.setAttribute(
     'aria-label',
-
     `${state.shield} điểm lá chắn`
   );
 
@@ -4292,9 +7263,8 @@ function updateHud() {
       ) => {
         bar.classList.toggle(
           'is-empty',
-
           index >=
-            state.shield
+          state.shield
         );
       }
     );
@@ -4304,19 +7274,19 @@ function updateHud() {
 
   const displayedLevelPoints =
     state.level >=
-    CONFIG.maxLevel
+      CONFIG.maxLevel
       ? CONFIG.pointsPerLevel
       : state.levelPoints;
 
   const levelLabel =
     state.level >=
-    CONFIG.maxLevel
+      CONFIG.maxLevel
       ? `Level ${state.level}, cấp tối đa`
       : `${displayedLevelPoints} trên ` +
-        `${CONFIG.pointsPerLevel} điểm cấp độ; ` +
-        `${state.levelHitProgress} trên ` +
-        `${CONFIG.hitsPerLevelPoint} meteor ` +
-        'cho điểm tiếp theo';
+      `${CONFIG.pointsPerLevel} điểm cấp độ; ` +
+      `${state.levelHitProgress} trên ` +
+      `${CONFIG.hitsPerLevelPoint} meteor ` +
+      'cho điểm tiếp theo';
 
   levelProgress.setAttribute(
     'aria-label',
@@ -4331,9 +7301,8 @@ function updateHud() {
       ) => {
         bar.classList.toggle(
           'is-filled',
-
           index <
-            displayedLevelPoints
+          displayedLevelPoints
         );
       }
     );
@@ -4394,7 +7363,6 @@ function readBestScore() {
         localStorage.getItem(
           'sword-meteor-best'
         ) ?? '0',
-
         10
       ) || 0
     );
@@ -4424,10 +7392,6 @@ startButton.addEventListener(
 pauseButton.addEventListener(
   'click',
   (event) => {
-    /*
-     * Ngăn thao tác chạm truyền xuống
-     * canvas và kích hoạt bắn kiếm.
-     */
     event.preventDefault();
     event.stopPropagation();
 
@@ -4453,10 +7417,6 @@ function isPointInsideHud(
 function stopContinuousFireForPointer(
   pointerId
 ) {
-  /*
-   * Chỉ dừng đúng pointer đang giữ quyền
-   * điều khiển tâm ngắm.
-   */
   if (
     pointerId !==
     continuousFirePointerId
@@ -4479,10 +7439,6 @@ function stopContinuousFireForPointer(
   aimPointerCaptureElement =
     null;
 
-  /*
-   * Pointer có thể được giữ bởi canvas
-   * hoặc màn hình Intro/Pause.
-   */
   if (
     captureElement
       ?.hasPointerCapture?.(
@@ -4513,12 +7469,6 @@ function stopAllAimPointerInput() {
   aimPointerCaptureElement = null;
 }
 
-/*
- * Chặn popup nhấn giữ mặc định của Safari.
- *
- * Không chặn pointerdown hoặc click nên nút Pause,
- * nút Bắt đầu và điều khiển cảm ứng vẫn hoạt động.
- */
 function preventNativeGameMenu(
   event
 ) {
@@ -4558,13 +7508,12 @@ function usesRelativeTouchAim(
   return (
     isTouchInput &&
     longestViewportEdge <=
-      CONFIG.relativeTouchAimMaxEdge
+    CONFIG.relativeTouchAimMaxEdge
   );
 }
 
 hud.addEventListener(
   'pointerdown',
-
   (event) => {
     pointerIsOverHud =
       true;
@@ -4577,9 +7526,6 @@ hud.addEventListener(
       event.pointerId
     );
 
-    /*
-     * Nút Pause vẫn được phép nhận click.
-     */
     if (
       !event.target.closest(
         '#pause-button'
@@ -4588,7 +7534,6 @@ hud.addEventListener(
       event.preventDefault();
     }
   },
-
   {
     passive: false
   }
@@ -4599,9 +7544,6 @@ function updateAim(
   clientY,
   pointerType = 'mouse'
 ) {
-  /*
-   * Giữ toàn bộ tâm ngắm trong màn hình.
-   */
   const horizontalMargin =
     Math.min(
       CONFIG.aimScreenMargin,
@@ -4619,14 +7561,13 @@ function updateAim(
       clientX,
       horizontalMargin,
       innerWidth -
-        horizontalMargin
+      horizontalMargin
     ),
-
     THREE.MathUtils.clamp(
       clientY,
       verticalMargin,
       innerHeight -
-        verticalMargin
+      verticalMargin
     )
   );
 
@@ -4638,14 +7579,10 @@ function updateAim(
 
   reticle.classList.toggle(
     'is-touch',
-
     pointerType === 'touch' ||
     pointerType === 'pen'
   );
 
-  /*
-  * Chỉ hiển thị tâm ngắm khi game đang chạy.
-  */
   reticle.classList.toggle(
     'is-visible',
     state.running
@@ -4664,9 +7601,6 @@ function updateAim(
 }
 
 function resetCompactAimToDefault() {
-  /*
-   * Desktop giữ nguyên vị trí tâm ngắm.
-   */
   if (!isCompactScreen) {
     return;
   }
@@ -4678,10 +7612,6 @@ function resetCompactAimToDefault() {
       ? 'touch'
       : 'mouse';
 
-  /*
-   * Đưa tâm ngắm về giữa màn hình,
-   * giống vị trí khi trang vừa tải.
-   */
   updateAim(
     innerWidth / 2,
     innerHeight / 2 * 0.38,
@@ -4690,10 +7620,6 @@ function resetCompactAimToDefault() {
 }
 
 function restoreCompactAimBeforePause() {
-  /*
-   * Desktop không thay đổi.
-   * Nếu chưa có vị trí lưu thì không làm gì.
-   */
   if (
     !isCompactScreen ||
     !hasAimScreenBeforePause
@@ -4718,10 +7644,6 @@ function restoreCompactAimBeforePause() {
 function updateRelativeTouchAim(
   event
 ) {
-  /*
-   * Khoảng dịch chuyển của ngón tay kể từ
-   * sự kiện pointermove trước đó.
-   */
   const deltaX =
     event.clientX -
     relativeTouchLastX;
@@ -4736,26 +7658,19 @@ function updateRelativeTouchAim(
   relativeTouchLastY =
     event.clientY;
 
-  /*
-   * Dịch chuyển từ vị trí hiện tại của tâm ngắm,
-   * không đưa tâm ngắm thẳng tới vị trí ngón tay.
-   */
   updateAim(
     aimScreen.x +
-      deltaX *
-        CONFIG.relativeTouchAimSensitivity,
-
+    deltaX *
+    CONFIG.relativeTouchAimSensitivity,
     aimScreen.y +
-      deltaY *
-        CONFIG.relativeTouchAimSensitivity,
-
+    deltaY *
+    CONFIG.relativeTouchAimSensitivity,
     event.pointerType
   );
 }
 
 window.addEventListener(
   'pointermove',
-
   (event) => {
     pointerIsOverHud =
       isPointInsideHud(
@@ -4763,12 +7678,6 @@ window.addEventListener(
         event.clientY
       );
 
-    /*
-     * Khi ngón tay hoặc con trỏ đi vào HUD:
-     * - Không đổi hướng ngắm.
-     * - Ẩn tâm ngắm.
-     * - Dừng bắn liên hoàn.
-     */
     if (pointerIsOverHud) {
       reticle.classList.remove(
         'is-visible'
@@ -4781,14 +7690,10 @@ window.addEventListener(
       return;
     }
 
-    /*
-     * iPad/mobile:
-     * độ lệch của ngón tay điều khiển tâm ngắm.
-     */
     if (
       relativeTouchAimActive &&
       event.pointerId ===
-        continuousFirePointerId &&
+      continuousFirePointerId &&
       usesRelativeTouchAim(
         event.pointerType
       )
@@ -4800,10 +7705,6 @@ window.addEventListener(
       return;
     }
 
-    /*
-     * Không cho sự kiện cảm ứng không hoạt động
-     * đưa tâm ngắm tới tọa độ tuyệt đối.
-     */
     if (
       usesRelativeTouchAim(
         event.pointerType
@@ -4812,17 +7713,12 @@ window.addEventListener(
       return;
     }
 
-    /*
-     * Chuột trên desktop vẫn ngắm trực tiếp
-     * theo vị trí con trỏ.
-     */
     updateAim(
       event.clientX,
       event.clientY,
       event.pointerType
     );
   },
-
   {
     passive: true
   }
@@ -4831,10 +7727,6 @@ window.addEventListener(
 function beginAimPointerInput(
   event
 ) {
-  /*
-   * Chỉ nhận chuột trái, cảm ứng
-   * hoặc bút cảm ứng.
-   */
   if (
     event.button !== 0 &&
     event.pointerType !== 'touch'
@@ -4842,10 +7734,6 @@ function beginAimPointerInput(
     return;
   }
 
-  /*
-   * Không biến thao tác trên nút hoặc HUD
-   * thành thao tác ngắm/bắn.
-   */
   if (
     event.target
       ?.closest?.(
@@ -4855,10 +7743,6 @@ function beginAimPointerInput(
     return;
   }
 
-  /*
-   * Trường hợp màn hình Pause phủ trên HUD,
-   * vẫn kiểm tra bằng tọa độ thực.
-   */
   if (
     isPointInsideHud(
       event.clientX,
@@ -4879,16 +7763,12 @@ function beginAimPointerInput(
     event.pointerType === 'touch' ||
     event.pointerType === 'pen';
 
-  /*
-   * Mỗi lần chỉ một ngón tay hoặc
-   * một bút được điều khiển tâm ngắm.
-   */
   if (
     isContinuousInput &&
     continuousFirePointerId !==
-      null &&
+    null &&
     continuousFirePointerId !==
-      event.pointerId
+    event.pointerId
   ) {
     return;
   }
@@ -4901,10 +7781,6 @@ function beginAimPointerInput(
       event.pointerType
     )
   ) {
-    /*
-     * Điểm chạm đầu chỉ bắt đầu phiên ngắm.
-     * Tâm ngắm không nhảy tới vị trí ngón tay.
-     */
     relativeTouchAimActive =
       true;
 
@@ -4920,9 +7796,6 @@ function beginAimPointerInput(
       event.pointerType
     );
   } else {
-    /*
-     * Chuột desktop vẫn dùng vị trí tuyệt đối.
-     */
     relativeTouchAimActive =
       false;
 
@@ -4937,10 +7810,6 @@ function beginAimPointerInput(
     continuousFirePointerId =
       event.pointerId;
 
-    /*
-     * Intro/Pause vẫn giữ pointer để ngắm,
-     * nhưng không kích hoạt bắn liên hoàn.
-     */
     continuousFireActive =
       state.running;
 
@@ -4955,34 +7824,22 @@ function beginAimPointerInput(
     event.preventDefault();
   }
 
-  /*
-   * Chỉ bắn phát đầu tiên khi đang chơi.
-   */
   if (state.running) {
     shootAtAim();
   }
 }
 
-/*
- * Điều khiển trong lúc game đang chạy.
- */
 canvas.addEventListener(
   'pointerdown',
   beginAimPointerInput,
-
   {
     passive: false
   }
 );
 
-/*
- * Khi Intro hoặc Pause phủ lên canvas,
- * startScreen nhận thao tác ngắm thay canvas.
- */
 startScreen.addEventListener(
   'pointerdown',
   beginAimPointerInput,
-
   {
     passive: false
   }
@@ -5014,7 +7871,6 @@ window.addEventListener(
 
 window.addEventListener(
   'keydown',
-
   (event) => {
     if (
       event.code === 'Space'
@@ -5048,7 +7904,6 @@ window.addEventListener(
 
 document.addEventListener(
   'visibilitychange',
-
   () => {
     if (
       document.hidden &&
@@ -5061,7 +7916,6 @@ document.addEventListener(
 
 window.addEventListener(
   'resize',
-
   () => {
     camera.aspect =
       innerWidth /
@@ -5086,7 +7940,6 @@ window.addEventListener(
     updateAim(
       aimScreen.x,
       aimScreen.y,
-
       reticle.classList.contains(
         'is-touch'
       )
@@ -5111,11 +7964,9 @@ function updateResponsivePlayerLayout() {
 
   player.position.set(
     0,
-
     compactScreen
       ? 1.2
       : 1,
-
     2.5
   );
 }
@@ -5162,7 +8013,7 @@ function updateCamera(delta) {
     Math.max(
       0,
       state.shake -
-        delta * 1.45
+      delta * 1.45
     );
 
   const shake =
@@ -5170,22 +8021,20 @@ function updateCamera(delta) {
 
   camera.position.set(
     cameraBase.x +
-      THREE.MathUtils
-        .randFloatSpread(
-          shake
-        ),
-
+    THREE.MathUtils
+      .randFloatSpread(
+        shake
+      ),
     cameraBase.y +
-      THREE.MathUtils
-        .randFloatSpread(
-          shake
-        ),
-
+    THREE.MathUtils
+      .randFloatSpread(
+        shake
+      ),
     cameraBase.z +
-      THREE.MathUtils
-        .randFloatSpread(
-          shake * 0.55
-        )
+    THREE.MathUtils
+      .randFloatSpread(
+        shake * 0.55
+      )
   );
 
   camera.lookAt(
@@ -5215,6 +8064,7 @@ function animate(timestamp) {
   );
 
   updateBursts(delta);
+  updateFireExplosions(delta);
   updateCamera(delta);
 
   if (state.running) {
@@ -5230,17 +8080,12 @@ function animate(timestamp) {
     state.playTime +=
       delta;
 
-    /*
-    * Meteor xuất hiện ngày càng thường xuyên.
-    * Luôn giữ giới hạn tối thiểu để tránh interval về 0.
-    */
     const spawnInterval =
       Math.max(
         CONFIG.meteorMinSpawnInterval,
-
         CONFIG.meteorSpawnEvery -
-          state.playTime *
-            CONFIG.meteorSpawnAcceleration
+        state.playTime *
+        CONFIG.meteorSpawnAcceleration
       );
 
     if (
@@ -5248,7 +8093,6 @@ function animate(timestamp) {
       spawnInterval
     ) {
       state.spawnTimer = 0;
-
       spawnMeteor();
     }
 
@@ -5258,12 +8102,16 @@ function animate(timestamp) {
       delta
     );
 
+    updateSpecialSwordSystem(
+      delta
+    );
+
     updateProjectiles(delta);
 
     if (
       performance.now() -
-        state.lastHitAt >
-        2600 &&
+      state.lastHitAt >
+      2600 &&
       state.combo !== 1
     ) {
       state.combo = 1;
@@ -5273,6 +8121,21 @@ function animate(timestamp) {
     state.overlayMode ===
     'pause'
   ) {
+    /*
+    * Chỉ cập nhật hình ảnh hạt lửa.
+    *
+    * Không gọi updateSpecialSwordSystem()
+    * vì hàm đó sẽ làm cooldown và lượt
+    * tấn công của kiếm lửa tiếp tục chạy.
+    */
+    updateFireSwordVisual(
+      delta
+    );
+
+    /*
+    * Kiếm tự động vẫn quay quanh nhân vật
+    * theo rule pause hiện tại.
+    */
     updatePausedAutonomousSwords(
       delta
     );
@@ -5300,6 +8163,9 @@ loadAssets().catch(
     swordAsset = null;
 
     projectileSwordTemplate =
+      null;
+
+    projectileLevelTwoSwordTemplate =
       null;
 
     setupPlayer(null);
