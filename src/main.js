@@ -186,7 +186,7 @@ const CONFIG = Object.freeze({
   * Vị trí tâm vòng kiếm so với nhân vật.
   */
   ultimateSwordCenterOffsetX: 0,
-  ultimateSwordCenterOffsetY: isCompactScreen ? 0.6 : 0.8,
+  ultimateSwordCenterOffsetY: isCompactScreen ? 0.7 : 0.9,
   ultimateSwordCenterOffsetZ: isCompactScreen ? 1.5 : 2.5,
 
   /*
