@@ -120,7 +120,7 @@ const CONFIG = Object.freeze({
   fireSwordScaleFollowStrength: 22,
 
   // Vị trí kiếm lửa khi đứng cạnh nhân vật.
-  fireSwordIdleY: 0.1,
+  fireSwordIdleY: 0.05,
   fireSwordIdleZ: 0.3,
 
   // Màu sắc và phát sáng.
@@ -155,7 +155,7 @@ const CONFIG = Object.freeze({
   ultimateChargeDelay: 0.65,
 
   // Vạn Kiếm Quy Tông
-  ultimateSwordCount: isCompactScreen ? 150 : 300,
+  ultimateSwordCount: isCompactScreen ? 200 : 300,
   ultimateSwordRingCount: 5,
   ultimateSwordSpeed: 48,
   ultimateSwordHitRadius: 0.34,
