@@ -78,7 +78,7 @@ const CONFIG = Object.freeze({
   // Sau mỗi lần Ultimate kết thúc,
   // nhóm kiếm tự động phải hoàn thành
   // đúng hai lượt trước khi nạp vòng mới.
-  level20AutoWavesAfterUltimate: 2,
+  level20AutoWavesAfterUltimate: 3,
 
   // Tốc độ nhóm kiếm trở về quỹ đạo.
   autoSwordReturnSpeed: 34,
