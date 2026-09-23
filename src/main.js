@@ -75,6 +75,11 @@ const CONFIG = Object.freeze({
   // nhóm kiếm tự động chờ 1.5 giây.
   autoSwordAfterFireDelay: 1.5,
 
+  // Sau mỗi lần Ultimate kết thúc,
+  // nhóm kiếm tự động phải hoàn thành
+  // đúng hai lượt trước khi nạp vòng mới.
+  level20AutoWavesAfterUltimate: 2,
+
   // Tốc độ nhóm kiếm trở về quỹ đạo.
   autoSwordReturnSpeed: 34,
 
@@ -239,7 +244,7 @@ const CONFIG = Object.freeze({
   meteorMaxSpeedMultiplier: 3.6,
 
   startingShield: 3,
-  hitsPerLevelPoint: 1,
+  hitsPerLevelPoint: 5,
   pointsPerLevel: 3,
   maxLevel: 20,
 
@@ -424,6 +429,18 @@ let fireSwordAttackAge = 0;
 let fireSwordCooldownRemaining =
   CONFIG.fireSwordCooldown;
 let ultimateRingChargeCount = 0;
+/*
+ * Giai đoạn đặc biệt sau mỗi lần
+ * Vạn Kiếm Quy Tông kết thúc.
+ */
+let level20PostUltimateSequenceActive =
+  false;
+
+/*
+ * Số lượt kiếm tự động đã hoàn thành
+ * trong giai đoạn đặc biệt.
+ */
+let level20PostUltimateAutoWaves = 0;
 let specialSwordCyclePhase = 'inactive';
 let ultimateChargeTimer = 0;
 let ultimateSwordField = null;
@@ -3688,12 +3705,12 @@ function createMeteorFireEffect() {
   const outerParticleCount =
     isCompactScreen
       ? 10
-      : 34;
+      : 20;
 
   const coreParticleCount =
     isCompactScreen
       ? 6
-      : 20;
+      : 10;
 
   /*
   * Lớp lửa ngoài của meteor.
@@ -4551,12 +4568,25 @@ function finishUltimateSwordAttack() {
     setFireSwordIdleTransform();
   }
 
+  /*
+   * Sau Ultimate, kiếm lửa phải tấn công
+   * trước khi hai lượt auto bắt đầu.
+   */
+  level20PostUltimateSequenceActive =
+    state.level >= 20;
+
+  level20PostUltimateAutoWaves = 0;
+
   specialSwordCyclePhase =
-    'auto';
+    'red';
 
   autoSwordGroupPhase =
     'cooldown';
 
+  /*
+   * Cooldown auto chưa chạy ở đây vì
+   * đang đến lượt kiếm lửa.
+   */
   autoSwordWaveCooldownRemaining = 0;
 }
 
@@ -5546,9 +5576,76 @@ function finishAutonomousSwordGroupReturn() {
     'cooldown';
 
   /*
-   * Từ Level 12, sau khi toàn bộ
-   * kiếm tự động quay về thì chuyển
-   * ngay sang lượt kiếm lửa.
+   * Chu kỳ đặc biệt sau Ultimate:
+   * nhóm kiếm tự động phải hoàn thành
+   * đúng hai lượt.
+   */
+  if (
+    state.level >= 20 &&
+    specialSwordCyclePhase ===
+      'auto' &&
+    level20PostUltimateSequenceActive
+  ) {
+    level20PostUltimateAutoWaves += 1;
+
+    /*
+     * Mới hoàn thành lượt thứ nhất:
+     * giữ quyền cho nhóm auto và chờ
+     * cooldown trước lượt thứ hai.
+     */
+    if (
+      level20PostUltimateAutoWaves <
+      CONFIG
+        .level20AutoWavesAfterUltimate
+    ) {
+      autoSwordWaveCooldownRemaining =
+        CONFIG.autoSwordWaveCooldown;
+
+      return;
+    }
+
+    /*
+     * Đã hoàn thành đủ hai lượt.
+     */
+    level20PostUltimateSequenceActive =
+      false;
+
+    level20PostUltimateAutoWaves = 0;
+
+    /*
+     * Spawn vòng đầu tiên cho chu kỳ
+     * Vạn Kiếm Quy Tông tiếp theo.
+     */
+    const ultimateIsReady =
+      spawnNextUltimateChargeRing();
+
+    /*
+     * Trường hợp đã đủ vòng thì helper
+     * đã chuyển sang pha charging.
+     */
+    if (ultimateIsReady) {
+      autoSwordWaveCooldownRemaining =
+        0;
+
+      return;
+    }
+
+    /*
+     * Sau khi vòng đầu tiên xuất hiện,
+     * trở về chu kỳ auto → fire hiện tại.
+     */
+    specialSwordCyclePhase =
+      'auto';
+
+    autoSwordWaveCooldownRemaining =
+      CONFIG.autoSwordWaveCooldown;
+
+    return;
+  }
+
+  /*
+   * Chu kỳ thông thường Level 12–20:
+   * sau một lượt auto sẽ tới kiếm lửa.
    */
   if (
     state.level >= 12 &&
@@ -6244,14 +6341,58 @@ function updateFireSwordVisual(delta) {
   );
 }
 
+function spawnNextUltimateChargeRing() {
+  if (state.level < 20) {
+    return false;
+  }
+
+  ultimateRingChargeCount =
+    Math.min(
+      CONFIG.ultimateSwordRingCount,
+      ultimateRingChargeCount +
+        CONFIG.ultimateRingChargeStep
+    );
+
+  /*
+   * Hiển thị lại toàn bộ số vòng
+   * đã nạp, bao gồm vòng vừa thêm.
+   */
+  createUltimateSwordField(
+    ultimateRingChargeCount
+  );
+
+  /*
+   * Chưa đủ năm vòng thì tiếp tục
+   * chu kỳ kiếm tự động và kiếm lửa.
+   */
+  if (
+    ultimateRingChargeCount <
+    CONFIG.ultimateSwordRingCount
+  ) {
+    return false;
+  }
+
+  /*
+   * Đủ năm vòng: chuyển sang trạng thái
+   * chuẩn bị Vạn Kiếm Quy Tông.
+   */
+  specialSwordCyclePhase =
+    'charging';
+
+  ultimateChargeTimer =
+    CONFIG.ultimateChargeDelay;
+
+  return true;
+}
+
 function completeFireSwordTurn() {
   fireSwordPhase = 'idle';
 
   setFireSwordIdleTransform();
 
   /*
-   * Level 11 vẫn dùng cơ chế kiếm lửa
-   * tấn công định kỳ.
+   * Level 11 vẫn dùng kiếm lửa
+   * theo cooldown định kỳ.
    */
   if (state.level < 12) {
     fireSwordCooldownRemaining =
@@ -6264,47 +6405,45 @@ function completeFireSwordTurn() {
   }
 
   /*
-   * Tại Level 20, mỗi lần kiếm lửa
-   * quay về sẽ xuất hiện thêm một vòng.
+   * Sau khi Ultimate vừa kết thúc,
+   * lượt kiếm lửa đầu tiên không tạo vòng.
+   *
+   * Nó chỉ mở đầu cho hai lượt tấn công
+   * của nhóm kiếm tự động.
+   */
+  if (
+    state.level >= 20 &&
+    level20PostUltimateSequenceActive
+  ) {
+    specialSwordCyclePhase =
+      'auto';
+
+    autoSwordGroupPhase =
+      'cooldown';
+
+    autoSwordWaveCooldownRemaining =
+      CONFIG.autoSwordAfterFireDelay;
+
+    return;
+  }
+
+  /*
+   * Chu kỳ nạp vòng thông thường tại
+   * Level 20: kiếm lửa quay về thì
+   * tạo thêm một vòng Ultimate.
    */
   if (state.level >= 20) {
-    ultimateRingChargeCount =
-      Math.min(
-        CONFIG.ultimateSwordRingCount,
-        ultimateRingChargeCount +
-          CONFIG.ultimateRingChargeStep
-      );
+    const ultimateIsReady =
+      spawnNextUltimateChargeRing();
 
-    /*
-     * Hiện từ một đến năm vòng kiếm.
-     * Các vòng này chỉ đứng chờ.
-     */
-    createUltimateSwordField(
-      ultimateRingChargeCount
-    );
-
-    /*
-     * Đủ năm vòng mới thi triển
-     * Vạn Kiếm Quy Tông.
-     */
-    if (
-      ultimateRingChargeCount >=
-      CONFIG.ultimateSwordRingCount
-    ) {
-      specialSwordCyclePhase =
-        'charging';
-
-      ultimateChargeTimer =
-        CONFIG.ultimateChargeDelay;
-
+    if (ultimateIsReady) {
       return;
     }
   }
 
   /*
-   * Kiếm lửa đã về:
-   * chuyển lại cho nhóm kiếm tự động,
-   * nhưng phải đợi đủ hai giây.
+   * Sau kiếm lửa, trả quyền cho nhóm
+   * kiếm tự động và giữ delay hiện tại.
    */
   specialSwordCyclePhase =
     'auto';
@@ -6499,6 +6638,17 @@ function updateFireSwordAttack(delta) {
 function syncSpecialSwordSystem(
   level
 ) {
+  /*
+   * Bộ đếm đặc biệt chỉ tồn tại
+   * ở Level 20.
+   */
+  if (level < 20) {
+    level20PostUltimateSequenceActive =
+      false;
+
+    level20PostUltimateAutoWaves = 0;
+  }
+
   /*
    * Dưới Level 11 chưa có kiếm lửa.
    */
@@ -7192,6 +7342,11 @@ function clearDynamicObjects() {
 
   ultimateRingChargeCount = 0;
   ultimateChargeTimer = 0;
+
+  level20PostUltimateSequenceActive =
+  false;
+
+  level20PostUltimateAutoWaves = 0;
 
   fireSwordCooldownRemaining =
     CONFIG.fireSwordCooldown;
