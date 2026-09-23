@@ -120,7 +120,7 @@ const CONFIG = Object.freeze({
   fireSwordScaleFollowStrength: 22,
 
   // Vị trí kiếm lửa khi đứng cạnh nhân vật.
-  fireSwordIdleY: 0.05,
+  fireSwordIdleY: 0.1,
   fireSwordIdleZ: 0.3,
 
   // Màu sắc và phát sáng.
@@ -186,7 +186,7 @@ const CONFIG = Object.freeze({
   * Vị trí tâm vòng kiếm so với nhân vật.
   */
   ultimateSwordCenterOffsetX: 0,
-  ultimateSwordCenterOffsetY: isCompactScreen ? 0.8 : 1,
+  ultimateSwordCenterOffsetY: isCompactScreen ? 0.6 : 0.8,
   ultimateSwordCenterOffsetZ: isCompactScreen ? 1.5 : 2.5,
 
   /*
