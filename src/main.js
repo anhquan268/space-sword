@@ -4544,10 +4544,6 @@ function startUltimateSwordAttack() {
   ultimateSwordLaunchTimer = 0;
   ultimateSwordLaunchIndex = 0;
   ultimateSwordSpentCount = 0;
-
-  showHitLabel(
-    'VẠN KIẾM QUY TÔNG'
-  );
 }
 
 function finishUltimateSwordAttack() {
@@ -7476,7 +7472,7 @@ function showHitLabel(
       hitLabel.classList.remove(
         'is-visible'
       );
-    }, 800);
+    }, 1500);
 }
 
 function setStatus(
