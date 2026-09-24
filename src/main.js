@@ -6965,13 +6965,7 @@ function registerHit(
     burstColor
   );
 
-  showHitLabel(
-    leveledUp
-      ? getLevelRewardLabel(
-        state.level
-      )
-      : `+ ${gained}`
-  );
+  if (leveledUp) showHitLabel(getLevelRewardLabel(state.level));
 
   updateHud();
 }
