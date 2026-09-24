@@ -7476,7 +7476,7 @@ function showHitLabel(
       hitLabel.classList.remove(
         'is-visible'
       );
-    }, 420);
+    }, 800);
 }
 
 function setStatus(
